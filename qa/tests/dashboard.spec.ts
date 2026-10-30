@@ -45,3 +45,32 @@ test('a wrong password is rejected with the login overlay error state', async ({
   await expect(page).toHaveURL(/\/login\?error/);
   await expect(page.getByText(USERNAME)).not.toBeVisible();
 });
+
+test('eye toggles reveal and re-mask full account numbers', async ({ page }) => {
+  await page.goto('/login');
+  await page.locator('input[name="username"]').fill(USERNAME);
+  await page.locator('input[name="password"]').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await expect(page.getByText('Your accounts')).toBeVisible();
+
+  // Seeded numbers from DataInitializer - never in the page until explicitly revealed.
+  const checking = '1000000004821';
+  const savings = '2000000007743';
+  await expect(page.getByText(checking)).toHaveCount(0);
+
+  // Per-account eye on the Everyday Checking card: reveals in place without navigating.
+  const checkingCard = page.locator('a', { hasText: 'Everyday Checking' });
+  await checkingCard.locator('.account-number-toggle').click();
+  await expect(checkingCard.getByText(checking)).toBeVisible();
+  await expect(page).not.toHaveURL(/\/accounts\/.+/);
+  await checkingCard.locator('.account-number-toggle').click();
+  await expect(page.getByText(checking)).toHaveCount(0);
+
+  // Global toggle at the top of the dashboard reveals and hides every number at once.
+  await page.getByRole('button', { name: 'Show all account numbers' }).click();
+  await expect(page.getByText(savings)).toBeVisible();
+  await expect(page.getByText(checking).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Hide all account numbers' }).click();
+  await expect(page.getByText(savings)).toHaveCount(0);
+  await expect(page.getByText(checking)).toHaveCount(0);
+});

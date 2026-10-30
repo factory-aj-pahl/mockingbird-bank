@@ -6,12 +6,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.mockingbirdbank.analytics.AnalyticsEventService;
 import com.mockingbirdbank.repository.AccountRepository;
 import com.mockingbirdbank.repository.AppUserRepository;
 import com.mockingbirdbank.repository.TransactionRepository;
 import com.mockingbirdbank.service.AccountService;
 import com.mockingbirdbank.service.TransactionService;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
 
@@ -34,7 +36,8 @@ class CircuitBreakerBehaviorTest {
                 new AccountService(
                         appUserRepository,
                         accountRepository,
-                        CircuitBreakerRegistry.of(ResilienceConfig.defaultConfig()));
+                        CircuitBreakerRegistry.of(ResilienceConfig.defaultConfig()),
+                        new AnalyticsEventService(new SimpleMeterRegistry()));
 
         // minimumNumberOfCalls(10): each of the first 10 calls genuinely reaches the (failing)
         // repository - one real attempt per call, exactly as it should before there's enough
