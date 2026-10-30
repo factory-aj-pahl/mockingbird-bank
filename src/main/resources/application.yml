@@ -85,3 +85,4 @@ mockingbird:
   feature-flags:
     show-account-number-on-dashboard: true
     show-welcome-banner: false
+    allow-account-number-reveal: true

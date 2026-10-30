@@ -1,11 +1,13 @@
 package com.mockingbirdbank.ui.view;
 
 import com.mockingbirdbank.analytics.AnalyticsEventService;
+import com.mockingbirdbank.config.FeatureFlagService;
 import com.mockingbirdbank.model.Account;
 import com.mockingbirdbank.model.Transaction;
 import com.mockingbirdbank.service.AccountService;
 import com.mockingbirdbank.service.TransactionService;
 import com.mockingbirdbank.ui.layout.MainLayout;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Span;
@@ -37,14 +39,17 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
     private final AccountService accountService;
     private final TransactionService transactionService;
     private final AnalyticsEventService analytics;
+    private final FeatureFlagService featureFlagService;
 
     public AccountDetailView(
             AccountService accountService,
             TransactionService transactionService,
-            AnalyticsEventService analytics) {
+            AnalyticsEventService analytics,
+            FeatureFlagService featureFlagService) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.analytics = analytics;
+        this.featureFlagService = featureFlagService;
         setPadding(true);
         setSpacing(true);
         getStyle().set("background", "var(--mb-page-bg)").set("min-height", "100%");
@@ -85,13 +90,19 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
                 .set("font-size", "1.4rem")
                 .set("font-weight", "600")
                 .set("color", "var(--mb-text)");
-        Span meta =
-                new Span(
-                        "Account "
-                                + account.getMaskedNumber()
-                                + " · Opened "
-                                + account.getOpenedAt());
-        meta.getStyle().set("color", "var(--mb-text-muted)").set("font-size", "0.85rem");
+        Component number =
+                featureFlagService.allowAccountNumberReveal()
+                        ? new AccountNumberDisplay(account, "Account ", accountService)
+                        : new Span("Account " + account.getMaskedNumber());
+        HorizontalLayout meta =
+                new HorizontalLayout(number, new Span("· Opened " + account.getOpenedAt()));
+        meta.setPadding(false);
+        meta.setSpacing(false);
+        meta.setAlignItems(FlexLayout.Alignment.CENTER);
+        meta.getStyle()
+                .set("gap", "0.35rem")
+                .set("color", "var(--mb-text-muted)")
+                .set("font-size", "0.85rem");
 
         VerticalLayout left = new VerticalLayout(name, meta);
         left.setPadding(false);
