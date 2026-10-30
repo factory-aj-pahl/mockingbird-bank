@@ -406,6 +406,13 @@ step needed.
 
 ## Project management
 
+- **Backlog (Linear)**: feature requests and the backlog live in the Linear
+  project [Mockingbird Bank](https://linear.app/factoryai/project/mockingbird-bank-24d466cdcf7f/overview)
+  (team "SE Demo", issue key `SED`, project id
+  `dac0b4a0-ec0c-4f39-bdbb-75ee08a9d9da`). Pick up and reference work from
+  there, and put the issue key (e.g. `SED-123`) in branch names and PR
+  descriptions so work traces back to its issue. An automation that watches
+  the project for new issues is planned.
 - **Issue templates** (`.github/ISSUE_TEMPLATE/`): structured forms for bug
   reports and feature requests (both auto-labeled `triage`), plus a
   `config.yml` that disables freeform blank issues and points a suspected
