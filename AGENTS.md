@@ -108,6 +108,43 @@ show:
 - Username: `jordan.ellis`
 - Password: `mockingbird` (override via the `MOCKINGBIRD_DEV_PASSWORD` env var)
 
+## Local Kubernetes (k3d)
+
+To see a change running in Kubernetes before it reaches `master`, deploy the
+working tree to the local k3d cluster (kube context `k3d-dev-k8s`, cluster
+`dev-k8s`) together with its own in-cluster Postgres:
+
+```
+./scripts/k3d-deploy.sh                  # build, import, apply, wait for rollout
+./scripts/k3d-deploy.sh status           # pods/services/ingress/PVC
+./scripts/k3d-deploy.sh logs [postgres]  # follow app (or DB) logs
+./scripts/k3d-deploy.sh down             # remove the app, stop Postgres, keep its data
+./scripts/k3d-deploy.sh down --purge-db  # delete the namespace, DB data included
+```
+
+Each run does `docker build` (native arch, the same `Dockerfile` as
+releases), `k3d image import`, then `kubectl apply -k` of `k8s/local/` with the
+image pinned to a unique per-build tag (`mockingbird-bank:dev-<sha>[-dirty]-<timestamp>`),
+so every run rolls a fresh pod. Then open http://mockingbird.localhost:81 and
+sign in with the [demo login](#demo-login-local-dev-only). Port 81 is what this
+cluster's k3d loadbalancer maps to Traefik's port 80; the script prints the
+actual URL. `*.localhost` resolves to 127.0.0.1, so no hosts-file edit is needed.
+
+- `k8s/local/` holds plain kustomize manifests in namespace `mockingbird-bank-dev`:
+  a `postgres:16-alpine` StatefulSet on a `local-path` PVC (data survives
+  redeploys), the app Deployment (one replica; Vaadin sessions live in memory,
+  so scaling out would need sticky sessions), a ClusterIP Service, and a Traefik
+  Ingress. The DB credentials in `k8s/local/kustomization.yaml` are throwaway
+  local-only values. Postgres reads them only when it initializes an empty
+  volume, so changing them needs `down --purge-db`.
+- Flip feature flags for a local deploy by adding `MOCKINGBIRD_FEATURE_FLAGS_<NAME>`
+  entries to the ConfigMap generator in `k8s/local/kustomization.yaml`.
+- The top-level `k8s/*.yaml` files are Harness-templated manifests for the LAB
+  deploy (external Postgres, MetalLB IP). They are not used by the k3d flow.
+- Override the target with `CONTEXT=... CLUSTER=...`. Every kubectl call in the
+  script is pinned to that context, never the current one.
+- Each build leaves an image in the k3d nodes' containerd; kubelet image GC
+  removes unused ones when node disk fills up.
 ## Testing
 
 ```
@@ -480,7 +517,8 @@ src/main/resources/
 src/test/java/com/mockingbirdbank/  Mirrors the main package layout
 config/checkstyle/, config/pmd/     Static analysis rule configs
 docs/runbooks/                          Operational runbooks (see Observability & resilience)
-k8s/                                    Kubernetes manifests for deployment
+k8s/                                    Kubernetes manifests for deployment (Harness/LAB)
+k8s/local/                              Plain kustomize manifests for the local k3d cluster
 ```
 
 ## Conventions

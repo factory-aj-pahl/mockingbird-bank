@@ -1,0 +1,44 @@
+# Local-only k3d deployment (app + in-cluster Postgres). Plain manifests, no
+# Harness templating - the parent k8s/*.yaml files back the LAB Harness deploy
+# and are not used here. Deploy with ./scripts/k3d-deploy.sh, which builds and
+# imports the image and pins it to a per-build tag via a throwaway overlay.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mockingbird-bank-dev
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: mockingbird-bank
+      app.kubernetes.io/environment: local-dev
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - app.yaml
+  - ingress.yaml
+
+secretGenerator:
+  # LOCAL DEV ONLY - throwaway credentials for a database that only exists
+  # inside a laptop k3d cluster. Postgres only reads these when it initializes
+  # an empty data directory, so changing them later also needs the PVC wiped
+  # (./scripts/k3d-deploy.sh down --purge-db).
+  - name: mockingbird-dev-db
+    literals:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=local-dev-only
+      - POSTGRES_DB=mockingbirdbank
+
+configMapGenerator:
+  - name: mockingbird-dev-app-config
+    literals:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mockingbirdbank
+      - VAADIN_LAUNCH_BROWSER=false
+      - MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED=true
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=75
+      # No OTLP collector runs in this cluster; without this the exporter logs
+      # an ERROR every few seconds. Set to 1.0 and add
+      # MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT to collect traces.
+      - MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.0
+      # Feature flags can be flipped here per local deploy, e.g.:
+      # - MOCKINGBIRD_FEATURE_FLAGS_SHOW_WELCOME_BANNER=true
