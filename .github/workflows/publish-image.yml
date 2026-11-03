@@ -42,6 +42,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Version/commit the app reports at /actuator/info - see scripts/build-metadata.sh.
+      - name: Collect build metadata
+        id: buildmeta
+        run: ./scripts/build-metadata.sh >> "$GITHUB_OUTPUT"
+
       - name: Derive image tags
         id: meta
         uses: docker/metadata-action@v5
@@ -50,6 +55,9 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha,format=long
+          # metadata-action would otherwise label the image version "latest".
+          labels: |
+            org.opencontainers.image.version=${{ steps.buildmeta.outputs.APP_VERSION }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -58,6 +66,12 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.buildmeta.outputs.APP_VERSION }}
+            GIT_COMMIT=${{ steps.buildmeta.outputs.GIT_COMMIT }}
+            GIT_BRANCH=${{ steps.buildmeta.outputs.GIT_BRANCH }}
+            GIT_DIRTY=${{ steps.buildmeta.outputs.GIT_DIRTY }}
+            GIT_COMMIT_TIME=${{ steps.buildmeta.outputs.GIT_COMMIT_TIME }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

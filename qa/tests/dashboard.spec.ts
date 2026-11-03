@@ -74,3 +74,24 @@ test('eye toggles reveal and re-mask full account numbers', async ({ page }) => 
   await expect(page.getByText(savings)).toHaveCount(0);
   await expect(page.getByText(checking)).toHaveCount(0);
 });
+
+test('the build version shows directly under the wordmark', async ({ page }) => {
+  await page.goto('/login');
+  await page.locator('input[name="username"]').fill(USERNAME);
+  await page.locator('input[name="password"]').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await expect(page.getByText('Your accounts')).toBeVisible();
+
+  // showBuildVersion defaults to on: e.g. "0.1.0-359dd54" (or "-dirty"), or "0.2.0 (359dd54)" for a
+  // tagged release. The tooltip carries the commit and branch.
+  const label = page.locator('#build-version');
+  await expect(label).toHaveText(/^\d+\.\d+\.\d+\S*( \([0-9a-f]{7}\))?$/);
+  await expect(label).toHaveAttribute('title', /commit [0-9a-f]{7}, branch /);
+
+  // Below the "Mockingbird Bank" wordmark and left-aligned with it, not over on the right.
+  const wordmark = page.getByRole('heading', { name: 'Mockingbird Bank', exact: true });
+  const wordmarkBox = (await wordmark.boundingBox())!;
+  const labelBox = (await label.boundingBox())!;
+  expect(labelBox.y).toBeGreaterThanOrEqual(wordmarkBox.y + wordmarkBox.height - 1);
+  expect(Math.abs(labelBox.x - wordmarkBox.x)).toBeLessThan(2);
+});

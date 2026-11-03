@@ -46,9 +46,20 @@ management:
   endpoints:
     web:
       exposure:
-        # health stays public (see SecurityConfig); featureflags/profiling
-        # are ops-facing, reachable once authenticated.
-        include: health,featureflags,profiling
+        # health and info are public (see SecurityConfig); featureflags/
+        # profiling are ops-facing, reachable once authenticated.
+        include: health,info,featureflags,profiling
+  info:
+    # /actuator/info is public, so it reports only what "which build is deployed" needs: switch
+    # every contributor off, then back on for build (version, build time) and git (short commit,
+    # branch, commit time - "simple" mode). A contributor a future Spring Boot adds stays off.
+    defaults:
+      enabled: false
+    build:
+      enabled: true
+    git:
+      enabled: true
+      mode: simple
   tracing:
     sampling:
       # This app is small enough that 100% sampling isn't a cost/volume concern - trace every
@@ -86,3 +97,4 @@ mockingbird:
     show-account-number-on-dashboard: true
     show-welcome-banner: false
     allow-account-number-reveal: true
+    show-build-version: true

@@ -15,6 +15,7 @@ class FeatureFlagsEndpointTest {
 
         assertThat(endpoint.flags())
                 .containsEntry("showAccountNumberOnDashboard", true)
-                .containsEntry("showWelcomeBanner", true);
+                .containsEntry("showWelcomeBanner", true)
+                .containsEntry("showBuildVersion", true);
     }
 }

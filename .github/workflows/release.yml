@@ -61,6 +61,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # The jar's version is the tag's version (APP_VERSION overrides the
+      # computed <baseVersion>-<sha>); the commit still comes from git.
+      - name: Collect build metadata
+        id: buildmeta
+        env:
+          APP_VERSION: ${{ needs.publish-release.outputs.version }}
+        run: ./scripts/build-metadata.sh >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -69,5 +77,11 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ needs.publish-release.outputs.version }}
             ${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            APP_VERSION=${{ steps.buildmeta.outputs.APP_VERSION }}
+            GIT_COMMIT=${{ steps.buildmeta.outputs.GIT_COMMIT }}
+            GIT_BRANCH=${{ steps.buildmeta.outputs.GIT_BRANCH }}
+            GIT_DIRTY=${{ steps.buildmeta.outputs.GIT_DIRTY }}
+            GIT_COMMIT_TIME=${{ steps.buildmeta.outputs.GIT_COMMIT_TIME }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
