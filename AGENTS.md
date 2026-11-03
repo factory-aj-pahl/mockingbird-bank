@@ -181,8 +181,14 @@ First run needs `cd qa && npm install && npx playwright install chromium`
 Override one per-environment with a `MOCKINGBIRD_FEATURE_FLAGS_<NAME>` env var (Spring's relaxed
 binding maps it automatically) - no code change or redeploy needed, just a different value for
 that variable (e.g. in a k8s manifest or `docker run -e`). `FeatureFlagService` is the typed,
-call-site-facing API (`showAccountNumberOnDashboard()`, `showWelcomeBanner()`); `DashboardView`
-and `AccountCard` use it to gate two small, genuinely optional pieces of UI. Current values are
+call-site-facing API (`showAccountNumberOnDashboard()`, `showWelcomeBanner()`,
+`allowAccountNumberReveal()`); `DashboardView`, `AccountCard`, and `AccountDetailView` use it to
+gate small, genuinely optional pieces of UI. `allowAccountNumberReveal` (default on) controls the
+eye buttons next to masked account numbers: `AccountNumberDisplay` fetches the full number from
+`AccountService.revealAccountNumber` only when clicked (ownership-checked and recorded as an
+`account_number.revealed` analytics event, never logged itself), and re-masks after 30 seconds or
+on navigation; the dashboard's "Show account numbers" toggle uses `revealAccountNumbers()` to
+reveal all of the signed-in holder's accounts in one call. Current values are
 visible read-only at `/actuator/featureflags` (`FeatureFlagsEndpoint`) for ops visibility. Add a
 new flag by adding one field to `FeatureFlagsProperties` (with a default matching current
 behavior) and one accessor on `FeatureFlagService`.

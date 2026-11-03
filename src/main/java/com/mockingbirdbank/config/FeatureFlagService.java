@@ -27,11 +27,16 @@ public class FeatureFlagService {
         return properties.isShowWelcomeBanner();
     }
 
+    public boolean allowAccountNumberReveal() {
+        return properties.isAllowAccountNumberReveal();
+    }
+
     /** All known flags and their current values, in declaration order. */
     public Map<String, Boolean> allFlags() {
         Map<String, Boolean> flags = new LinkedHashMap<>();
         flags.put("showAccountNumberOnDashboard", showAccountNumberOnDashboard());
         flags.put("showWelcomeBanner", showWelcomeBanner());
+        flags.put("allowAccountNumberReveal", allowAccountNumberReveal());
         return flags;
     }
 }

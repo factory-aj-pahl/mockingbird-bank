@@ -25,4 +25,10 @@ public class FeatureFlagsProperties {
 
     /** Whether the dashboard shows a "Welcome back" banner above the balance summary. */
     private boolean showWelcomeBanner = false;
+
+    /**
+     * Whether masked account numbers get an eye button that fetches and shows the full number on
+     * request (per account, plus a dashboard-wide "show all").
+     */
+    private boolean allowAccountNumberReveal = true;
 }

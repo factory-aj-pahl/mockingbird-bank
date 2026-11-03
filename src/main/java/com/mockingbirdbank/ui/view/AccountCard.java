@@ -2,6 +2,7 @@ package com.mockingbirdbank.ui.view;
 
 import com.mockingbirdbank.model.Account;
 import com.mockingbirdbank.model.AccountType;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -18,16 +19,14 @@ public class AccountCard extends Anchor {
 
     private static final NumberFormat USD = NumberFormat.getCurrencyInstance(Locale.US);
 
-    public AccountCard(Account account) {
-        this(account, true);
-    }
-
     /**
-     * @param showAccountNumber gates the masked account number line behind the {@code
-     *     mockingbird.feature-flags.show-account-number-on-dashboard} flag (see FeatureFlagService)
-     *     - off hides it entirely rather than leaving a blank line.
+     * @param accountNumber the account number line to show, or {@code null} to hide it entirely
+     *     rather than leaving a blank line (the {@code
+     *     mockingbird.feature-flags.show-account-number-on-dashboard} flag, see
+     *     FeatureFlagService). Either an {@link AccountNumberDisplay} or a plain masked {@link
+     *     Span}, depending on whether account number reveal is enabled.
      */
-    public AccountCard(Account account, boolean showAccountNumber) {
+    public AccountCard(Account account, Component accountNumber) {
         super("accounts/" + account.getId(), "");
         getStyle()
                 .set("display", "block")
@@ -78,10 +77,13 @@ public class AccountCard extends Anchor {
         VerticalLayout body = new VerticalLayout(header);
         body.setPadding(false);
         body.setSpacing(false);
-        if (showAccountNumber) {
-            Span number = new Span(account.getMaskedNumber());
-            number.getStyle().set("color", "var(--mb-text-muted)").set("font-size", "0.8rem");
-            body.add(number);
+        if (accountNumber != null) {
+            accountNumber
+                    .getElement()
+                    .getStyle()
+                    .set("color", "var(--mb-text-muted)")
+                    .set("font-size", "0.8rem");
+            body.add(accountNumber);
         }
         body.add(balance, link);
         add(body);
