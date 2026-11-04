@@ -3,6 +3,11 @@ name: Droid Wiki Refresh
 on:
   push:
     branches: [master]
+    # Merging the wiki pull request is itself a push to master. Without this,
+    # every merge would start a refresh that only recounts the merged pages
+    # and opens yet another wiki pull request.
+    paths-ignore:
+      - 'droid-wiki/**'
 
 # The job that runs /wiki is read-only: the agent reads the whole repository
 # and the pages restored from the unmerged rolling branch, so it must not be
@@ -82,8 +87,6 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      # v6, not v4: create-pull-request v8 reads the credentials where
-      # checkout v6 persists them, and pushes fail without them.
       - uses: actions/checkout@v6
 
       - name: Pick up the generated wiki
