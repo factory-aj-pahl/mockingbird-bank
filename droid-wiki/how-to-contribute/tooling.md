@@ -123,11 +123,11 @@ The two summary files are computed by regex over each tool's XML report rather t
 | `.github/workflows/stale.yml` | Daily 06:00 UTC, manual | Mark issues and PRs stale after 60 days, close 14 days later; drafts and `priority: high`, `pinned`, `security` exempt |
 | `.github/workflows/droid-review.yml` | PR opened, ready for review, reopened | Factory Droid automatic code and security review on non-draft PRs |
 | `.github/workflows/droid.yml` | Comments, reviews, issues and PRs mentioning `@droid` | Ad hoc Droid run |
-| `.github/workflows/droid-wiki-refresh.yml` | Push to `master`, one run at a time | Regenerate this wiki with `droid exec "/wiki"`, push the pages to the `factory/droid-wiki` branch and open or update one "docs: refresh wiki" PR. See [Wiki refresh](#wiki-refresh) |
+| `.github/workflows/droid-wiki-refresh.yml` | Push to `master` that changes something outside `droid-wiki/`, one run at a time | Regenerate this wiki with `droid exec "/wiki"`, push the pages to the `factory/droid-wiki` branch and open or update one "docs: refresh wiki" PR. See [Wiki refresh](#wiki-refresh) |
 
 ### Wiki refresh
 
-`.github/workflows/droid-wiki-refresh.yml` (added in `3b03ecd`, PR #4, and fixed in `2b3e914`, PR #5) keeps the Factory Wiki in step with `master`. It splits the work into a read-only job that runs the agent and a write job that publishes the result, so the agent never holds push or PR permissions.
+`.github/workflows/droid-wiki-refresh.yml` (added in `3b03ecd`, PR #4, changed in `2b3e914`, PR #5, and limited to non-wiki pushes in `f97b7a4`, PR #8) keeps the Factory Wiki in step with `master`. It splits the work into a read-only job that runs the agent and a write job that publishes the result, so the agent never holds push or PR permissions.
 
 ```mermaid
 graph LR
@@ -142,6 +142,7 @@ graph LR
 | Piece | Detail |
 | --- | --- |
 | Concurrency | Group `droid-wiki-refresh` with `cancel-in-progress: false`, fixed for the whole repository, so pushes during a run queue instead of starting parallel generations |
+| Trigger | `push` to `master`, with `paths-ignore: droid-wiki/**`, so merging the wiki PR does not start another run |
 | Checkout | `actions/checkout@v6` in both jobs, the only workflow on v6. The `wiki-refresh` job sets `fetch-depth: 0`, because `/wiki` diffs against the commit the previous wiki was generated from to rewrite only the affected pages |
 | Restore | `git fetch origin factory/droid-wiki` then `git checkout FETCH_HEAD -- droid-wiki`, which copies the previous pages into the working tree without switching branches. If the branch does not exist yet, the run generates the whole wiki |
 | Generate | Installs Droid with `curl -fsSL https://app.factory.ai/cli \| sh` and runs `droid exec --auto high "/wiki"` with `FACTORY_API_KEY` |
@@ -149,9 +150,9 @@ graph LR
 | Publish | `peter-evans/create-pull-request`, pinned by SHA (v8.1.1), commits to branch `factory/droid-wiki` against the default branch with label `droid-wiki`. Uses `FACTORY_WIKI_PR_TOKEN` when set, otherwise `github.token` |
 | Failure handling | The publish step has `continue-on-error: true`; a later step turns a rejected push or PR into a `::warning::` annotation instead of failing the run |
 
-Two consequences are easy to miss. A PR opened with the `GITHUB_TOKEN` fallback does not trigger other workflows, so required checks never run on it; that is why the workflow asks for a fine-grained `FACTORY_WIKI_PR_TOKEN` (contents and pull-requests write on this repository only). And merging the wiki PR is itself a push to `master`, so it starts another refresh run. The `pull_request` guards on the hand-off and publish steps are defensive: the workflow currently triggers only on `push`.
+Two consequences are easy to miss. A PR opened with the `GITHUB_TOKEN` fallback does not trigger other workflows, so required checks never run on it; that is why the workflow asks for a fine-grained `FACTORY_WIKI_PR_TOKEN` (contents and pull-requests write on this repository only). Merging the wiki PR is itself a push to `master`; the `paths-ignore` filter keeps it from starting another refresh run that would only recount the merged pages and open a new PR. The `pull_request` guards on the hand-off and publish steps are defensive: the workflow currently triggers only on `push`.
 
-The checkout version matters for the publish step. `peter-evans/create-pull-request` v8 expects the credentials where `actions/checkout` v6 persists them. The workflow first shipped with checkout v4, and the first run on `master` generated the wiki but could not push the rolling branch ("could not read Username for 'https://github.com'"). `2b3e914` (PR #5) moved both jobs to v6. See [pitfalls](../background/pitfalls.md#create-pull-request-v8-needs-checkout-v6).
+The token matters for the publish step. The first runs on `master` generated the wiki but could not push the rolling branch ("could not read Username for 'https://github.com'"). The cause was an invalid `FACTORY_WIKI_PR_TOKEN`, not the checkout version, although `2b3e914` (PR #5) moved both jobs to checkout v6 while chasing it. See [pitfalls](../background/pitfalls.md#a-bad-factory_wiki_pr_token-looks-like-a-missing-credential).
 
 ## Dependabot
 

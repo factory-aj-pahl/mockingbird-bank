@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-04T19:52:52Z",
-  "commitHash": "2b3e9147c08d28469805df68525a0f51a31fb7a9",
+  "generatedAt": "2026-11-04T21:44:43Z",
+  "commitHash": "f97b7a41fdab93c4912abaee9d72fa45a5fc673d",
   "branch": "master",
   "pageCount": 47,
   "topLevelSections": [
@@ -74,9 +74,9 @@
     "contentType": "video/mp4",
     "generatedAt": "2026-11-04T18:32:21.442Z",
     "durationSeconds": 406.708333,
-    "copyFromWikiRunId": "09995be0-410f-4b8f-b874-e73aafb762d9",
+    "copyFromWikiRunId": "51c16ebb-324e-44f6-b018-e84f891eba18",
     "warnings": [
-      "Video diff classification: minor, changes are below regeneration thresholds (2 commits, 2 files, 134 lines); reused video from wiki run 09995be0-410f-4b8f-b874-e73aafb762d9"
+      "Video diff classification: minor, changes are below regeneration thresholds (4 commits, 2 files, 138 lines outside the generated droid-wiki/ pages); reused video from wiki run 51c16ebb-324e-44f6-b018-e84f891eba18"
     ]
   }
 }

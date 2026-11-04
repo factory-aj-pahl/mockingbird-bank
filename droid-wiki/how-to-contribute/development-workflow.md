@@ -94,7 +94,7 @@ A push to `master` starts:
 | `.github/workflows/release-drafter.yml` | Updates the draft GitHub Release |
 | `.github/workflows/dast.yml` | OWASP ZAP baseline scan of a production jar; report uploaded as an artifact, never fails the build |
 | `.github/workflows/codeql.yml`, `.github/workflows/secret-scan.yml` | Same scans as on the PR |
-| `.github/workflows/droid-wiki-refresh.yml` | Regenerates the changed pages of this wiki and opens or updates one "docs: refresh wiki" PR from the `factory/droid-wiki` branch. Review and merge it like any other PR; the merge starts one more refresh run. See [Tooling](tooling.md#wiki-refresh) |
+| `.github/workflows/droid-wiki-refresh.yml` | Regenerates the changed pages of this wiki and opens or updates one "docs: refresh wiki" PR from the `factory/droid-wiki` branch. Review and merge it like any other PR. Pushes that only change `droid-wiki/`, such as that merge, do not start another run. See [Tooling](tooling.md#wiki-refresh) |
 
 The image build passes the output of `scripts/build-metadata.sh` as build args, so the image reports its real version and commit. See [Build version](../features/build-version.md) and [Docker image](../deployment/docker-image.md).
 
