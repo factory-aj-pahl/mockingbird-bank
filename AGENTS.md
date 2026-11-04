@@ -402,6 +402,15 @@ step needed.
   an issue/PR comment to invoke it ad hoc. Both need a `FACTORY_API_KEY`
   repository secret and the Factory Droid GitHub App installed to actually
   run.
+- **Wiki refresh**: `.github/workflows/droid-wiki-refresh.yml` regenerates the
+  Factory Wiki (`droid exec "/wiki"`) on every push to `master`, one run at a
+  time. A read-only job generates the pages, starting from the previous wiki
+  on the rolling factory/droid-wiki branch so only pages whose code changed
+  are rewritten; a separate publish job then pushes the generated droid-wiki
+  directory to that branch and opens (or updates) one "docs: refresh wiki" PR.
+  Needs `FACTORY_API_KEY`, plus a `FACTORY_WIKI_PR_TOKEN` fine-grained PAT
+  (contents + pull-requests write, this repo only) so required checks run on
+  the wiki PR; without it the job falls back to `GITHUB_TOKEN`.
 - **Branch protection** on `master` requires the CI status check to pass,
   blocks force-pushes and branch deletion, and requires conversation
   resolution; repo admins can still bypass it for direct pushes when needed.
