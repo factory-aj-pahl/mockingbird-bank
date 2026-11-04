@@ -149,6 +149,6 @@ The choices below shape most of the codebase. Each section gives the context, wh
 
 **Decision.** Every ecosystem in `.github/dependabot.yml` has a `cooldown`: 5 days by default, 3 for patch, 7 for minor and 14 for major bumps (Docker and GitHub Actions set fewer tiers).
 
-**Consequences.** A freshly published release, the window when a supply-chain compromise or regression usually surfaces, never arrives as a PR on day one. Urgent security fixes still wait the cooldown unless someone bumps by hand.
+**Consequences.** A freshly published release, the window when a supply-chain compromise or regression usually surfaces, never arrives as a PR on day one. The cooldown applies only to routine version updates. Dependabot security updates ignore it, so a fix for a known vulnerability is not delayed by these settings.
 
 **Evidence.** Comment in `.github/dependabot.yml`, commit `00b53d6`.

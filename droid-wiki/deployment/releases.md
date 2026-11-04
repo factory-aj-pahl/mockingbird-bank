@@ -110,7 +110,7 @@ The tag must have three numeric parts; `v1.2` does not match `v*.*.*` and trigge
 
 The full procedure is in `docs/runbooks/rollback.md` ([runbook](../../docs/runbooks/rollback.md)). In short:
 
-1. Find the last good commit. Every push to `master` has a `sha-<commit>` image and a Deployment record with the smoke test result: `gh api repos/ajpahl1008/mockingbird-bank/deployments`.
+1. Find the last good commit. Every push to `master` has a `sha-<commit>` image and a Deployment record with the smoke test result: `gh api 'repos/{owner}/{repo}/deployments'` (run inside the checkout, so `gh` fills in this repository).
 2. For a quick fix, `kubectl -n mockingbird-bank rollout undo deploy/mockingbird-app` returns the LAB Deployment to its previous revision.
 3. To skip past several bad revisions, re-run the Harness pipeline with the last known-good image instead of `latest` (`k8s/values.yaml` takes `image: <+artifact.image>`).
 4. Revert the bad commit through a PR so the next deploy does not bring it back.

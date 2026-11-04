@@ -108,17 +108,17 @@ The output directory is `mockingbird.profiling.output-dir`, default `${java.io.t
 
 There are no API tokens or HTTP Basic auth. The only credential the app accepts is the session cookie that form login creates. Two things make scripting this awkward:
 
-- **Logging in with curl.** `SecurityConfig` does not disable Spring Security's CSRF protection, so the `POST /login` form submission needs a valid CSRF token, not just a username and password. The tests get around this with Spring Security Test's `formLogin()` helper, which adds the token for them. A plain `curl -d username=... -d password=...` is expected to be rejected.
-- **POST and DELETE.** For the same reason, `POST` and `DELETE /actuator/profiling` are expected to need a CSRF token as well as the session cookie.
+- **Logging in with curl.** `SecurityConfig` calls `VaadinSecurityConfigurer.loginView(LoginView.class)`, which exempts the configured `/login` URL from Spring Security's CSRF checks. A username/password form `POST` to `/login` therefore does not need a CSRF token. Keep the session cookie returned after a successful login and send it on later requests. The tests use Spring Security Test's `formLogin()` helper, which adds a token anyway, so they do not show whether one is required.
+- **POST and DELETE.** The exemption covers only the login URL. `SecurityConfig` leaves CSRF protection on for everything else, so `POST` and `DELETE /actuator/profiling` need a valid CSRF token as well as the session cookie.
 
-The practical route for reads is to sign in with a browser, copy the `JSESSIONID` cookie from the developer tools, and send it with curl:
+For reads, you can also sign in with a browser, copy the `JSESSIONID` cookie from the developer tools, and send it with curl:
 
 ```bash
 curl -s -b 'JSESSIONID=<value from the browser>' localhost:8080/actuator/featureflags
 curl -s -b 'JSESSIONID=<value from the browser>' localhost:8080/actuator/profiling
 ```
 
-Without a valid session, expect a redirect to `/login` rather than a JSON 401. The CSRF behavior above follows from Spring Security's defaults and what the tests do; it has not been checked against a running instance, and there is no documented recipe in the repo for starting a recording from a script.
+Without a valid session, expect a redirect to `/login` rather than a JSON 401. The CSRF behavior above follows from the Vaadin and Spring Security configuration; it has not been checked against a running instance, and there is no documented recipe in the repo for starting a recording from a script.
 
 ### What is not exposed
 

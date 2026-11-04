@@ -33,14 +33,21 @@ See [Analytics](../systems/analytics.md) and [Logging](../how-to-monitor/logging
 
 ### Following one request
 
-`src/main/java/com/mockingbirdbank/observability/CorrelationIdFilter.java` reuses an incoming `X-Correlation-Id` header or generates a UUID, and echoes it back on the response. To trace one request end to end, send your own ID and grep for it:
+`src/main/java/com/mockingbirdbank/observability/CorrelationIdFilter.java` reuses an incoming `X-Correlation-Id` header or generates a UUID, and echoes it back on the response. A quick check that the header comes back:
 
 ```bash
-curl -s -H 'X-Correlation-Id: debug-123' -o /dev/null -D - localhost:8080/actuator/health
-grep 'debug-123' build/logs/analytics-events.log
+curl -s -H 'X-Correlation-Id: debug-123' -o /dev/null -D - localhost:8080/actuator/health | grep -i x-correlation-id
 ```
 
-Vaadin UI interactions after the first page load arrive as XHR requests to the same servlet, so each click gets its own ID. Use the response header in the browser dev tools to find it.
+That only shows header propagation. `/actuator/health` does not call `AnalyticsEventService`, so `debug-123` never appears in `build/logs/analytics-events.log`.
+
+To trace a request that does write an analytics event, use the app in the browser. Signing in, opening the dashboard or opening an account each write one. Vaadin UI interactions after the first page load arrive as XHR requests to the same servlet, so each click gets its own ID. Copy the `X-Correlation-Id` response header of that request from the browser dev tools, then grep for it:
+
+```bash
+grep '<correlation-id>' build/logs/analytics-events.log
+```
+
+Search the console output of `bootRun` for the same ID to find the regular log lines from that request.
 
 ## Actuator endpoints
 
@@ -62,7 +69,7 @@ For a slow window you can reproduce, start a Flight Recorder recording, reproduc
 3. `DELETE /actuator/profiling` stops it and writes `mockingbird-bank-<epoch millis>.jfr` to `mockingbird.profiling.output-dir` (default `${java.io.tmpdir}/mockingbird-bank-jfr`).
 4. Open the file in JDK Mission Control or VisualVM.
 
-Both calls need an authenticated session. "Already running" and "nothing running" come back as a 200 response with an `error` field, so read the body rather than the status code. Endpoint details are in [Observability](../systems/observability.md#profiling-with-jfr).
+Both calls need an authenticated session and a valid Spring Security CSRF token; the session cookie alone is not enough. See [Calling the authenticated endpoints](../api.md#calling-the-authenticated-endpoints). "Already running" and "nothing running" come back as a 200 response with an `error` field, so read the body rather than the status code. Endpoint details are in [Observability](../systems/observability.md#profiling-with-jfr).
 
 ## Tracing
 

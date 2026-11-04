@@ -40,7 +40,7 @@ graph LR
 | Login page | `src/main/java/com/mockingbirdbank/ui/view/LoginView.java` | `LoginOverlay` posting to `login`; forgot-password button hidden. |
 | Sign out | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | `AuthenticationContext.logout()`. |
 
-There is no registration, password reset, lockout, rate limiting, MFA, or "remember me". Failed attempts are counted in analytics (`user.login` with outcome `error`) but nothing acts on them. `SecurityConfig` does not touch CSRF settings, so Spring Security's CSRF protection stays on for non-Vaadin requests such as the login form post; Vaadin handles its own internal requests.
+There is no registration, password reset, lockout, rate limiting, MFA, or "remember me". Failed attempts are counted in analytics (`user.login` with outcome `error`) but nothing acts on them. `SecurityConfig` does not change CSRF settings itself, but `VaadinSecurityConfigurer.loginView(...)` exempts the `/login` URL from CSRF checks, so the login form post needs no CSRF token. Vaadin's own internal requests are also exempt, because Vaadin applies its own CSRF protection to them. Every other state-changing request, such as `POST` and `DELETE /actuator/profiling`, still needs a valid Spring Security CSRF token.
 
 Sessions are the servlet container's in-memory HTTP sessions. Both Kubernetes deployments run one replica, which `k8s/local/app.yaml` explains is because Vaadin UI state lives in that session.
 
