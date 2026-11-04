@@ -76,15 +76,20 @@ show_status() {
 }
 
 deploy() {
-    local tag image start url
+    local tag image start url version metadata build_args
     start=$(date +%s)
     tag="$(image_tag)"
     image="${IMAGE_REPO}:${tag}"
+    # The Docker build context has no .git, so the version and commit the app
+    # reports (/actuator/info, startup log, top bar) have to come in as build args.
+    metadata="$(./scripts/build-metadata.sh --docker-args)"
+    read -r -a build_args <<<"$metadata"
+    version="$(./scripts/build-metadata.sh | sed -n 's/^APP_VERSION=//p')"
 
-    echo "== Mockingbird Bank: k3d deploy ($CONTEXT, image $image) =="
+    echo "== Mockingbird Bank: k3d deploy ($CONTEXT, image $image, version $version) =="
 
     echo "Building $image (native arch; first build takes a few minutes)..."
-    docker build -t "$image" -t "${IMAGE_REPO}:dev" .
+    docker build "${build_args[@]}" -t "$image" -t "${IMAGE_REPO}:dev" .
 
     echo "Importing image into k3d cluster '$CLUSTER'..."
     k3d image import "$image" "${IMAGE_REPO}:dev" -c "$CLUSTER"
@@ -123,6 +128,7 @@ YAML
         echo "Deployed $image in $(($(date +%s) - start))s."
         echo "Open:   $url"
         echo "Health: curl $url/actuator/health"
+        echo "Version: $version (curl $url/actuator/info)"
     else
         echo "Deployed $image, but the k3d loadbalancer has no host port mapped to 80."
         echo "Reach it with: kubectl --context $CONTEXT -n kube-system port-forward svc/traefik 8081:80"

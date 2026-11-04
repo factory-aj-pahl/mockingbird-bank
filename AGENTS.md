@@ -122,10 +122,12 @@ working tree to the local k3d cluster (kube context `k3d-dev-k8s`, cluster
 ./scripts/k3d-deploy.sh down --purge-db  # delete the namespace, DB data included
 ```
 
-Each run does `docker build` (native arch, the same `Dockerfile` as
-releases), `k3d image import`, then `kubectl apply -k` of `k8s/local/` with the
-image pinned to a unique per-build tag (`mockingbird-bank:dev-<sha>[-dirty]-<timestamp>`),
-so every run rolls a fresh pod. Then open http://mockingbird.localhost:81 and
+Each run does `docker build` (native arch, the same `Dockerfile` and
+`scripts/build-metadata.sh` build args as releases, so the app reports its real
+version - see [Build version](#build-version)), `k3d image import`, then
+`kubectl apply -k` of `k8s/local/` with the image pinned to a unique per-build
+tag (`mockingbird-bank:dev-<sha>[-dirty]-<timestamp>`), so every run rolls a
+fresh pod. Then open http://mockingbird.localhost:81 and
 sign in with the [demo login](#demo-login-local-dev-only). Port 81 is what this
 cluster's k3d loadbalancer maps to Traefik's port 80; the script prints the
 actual URL. `*.localhost` resolves to 127.0.0.1, so no hosts-file edit is needed.
@@ -145,6 +147,14 @@ actual URL. `*.localhost` resolves to 127.0.0.1, so no hosts-file edit is needed
   script is pinned to that context, never the current one.
 - Each build leaves an image in the k3d nodes' containerd; kubelet image GC
   removes unused ones when node disk fills up.
+- Give Docker's VM room. The image build runs the whole Gradle + Vaadin
+  production build inside the same VM as the k3d nodes. On Rancher Desktop with
+  2 CPUs / 6 GB and its own built-in Kubernetes also running, every build starved
+  the k3d API server and `kubectl` hung for 1.5-3.5 minutes per deploy. With
+  6 CPUs / 12 GB and Rancher Desktop's Kubernetes turned off (k3d only needs its
+  Docker engine: `rdctl set --kubernetes.enabled=false`), a full no-cache build
+  takes about 3 minutes and the API keeps answering in well under a second.
+
 ## Testing
 
 ```
@@ -321,10 +331,10 @@ Two things feed it without any call-site code at all:
 
 `Dockerfile` is a two-stage build: `./gradlew -Pvaadin.productionMode=true clean
 bootJar` in a JDK image, then just the resulting jar copied into a slim JRE
-image. Both build scripts (and both image-publishing workflows) pass the build
-args from `scripts/build-metadata.sh`, so the image reports its real version
-and commit - see [Build version](#build-version). `createDockerHubImage.zsh`
-needs `docker login` done first and pushes
+image. Both build scripts, `scripts/k3d-deploy.sh`, and both image-publishing
+workflows pass the build args from `scripts/build-metadata.sh`, so the image
+reports its real version and commit - see [Build version](#build-version).
+`createDockerHubImage.zsh` needs `docker login` done first and pushes
 to Docker Hub directly - there's no CI automation for that push yet (see
 `.github/workflows/publish-image.yml` for the closest automated equivalent,
 which publishes to GHCR on every push to `master` instead).
