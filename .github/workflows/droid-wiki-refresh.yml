@@ -27,7 +27,7 @@ jobs:
   wiki-refresh:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Full history: /wiki diffs against the commit the previous wiki
           # was generated from to update only the affected pages.
@@ -82,7 +82,9 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      # v6, not v4: create-pull-request v8 reads the credentials where
+      # checkout v6 persists them, and pushes fail without them.
+      - uses: actions/checkout@v6
 
       - name: Pick up the generated wiki
         uses: actions/download-artifact@v4
