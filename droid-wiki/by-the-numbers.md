@@ -2,25 +2,27 @@
 
 Data collected on 2026-11-04.
 
-A small codebase that grew fast. These figures come from `git ls-files`, `wc -l` and `git log` on `master` at commit `2b3e914`, so they describe tracked files only (no build output, no `node_modules`).
+A small codebase that grew fast. These figures come from `git ls-files`, `wc -l` and `git log` on `master` at commit `f97b7a4`, so they describe tracked files only (no build output, no `node_modules`).
 
 ## Size
 
-The repository tracks 124 files and 8,404 lines, excluding three generated or binary files: `gradle/wrapper/gradle-wrapper.jar`, `qa/package-lock.json` and `.devcontainer/devcontainer-lock.json`.
+The repository tracks 172 files and 13,740 lines, excluding three generated or binary files: `gradle/wrapper/gradle-wrapper.jar`, `qa/package-lock.json` and `.devcontainer/devcontainer-lock.json`.
+
+48 of those files (5,332 lines) are this wiki. `droid-wiki/` was committed for the first time in `33ecb9c` (PR #6), so Markdown is now the largest language by line count. Without `droid-wiki/`, the repository is 124 files and 8,408 lines. The only change since the previous snapshot at `33ecb9c` is `f97b7a4` (PR #8), which added a net 4 lines across `AGENTS.md` and `.github/workflows/droid-wiki-refresh.yml`.
 
 ```mermaid
 xychart-beta horizontal
     title "Lines by language"
-    x-axis ["Java", "YAML", "Markdown", "Gradle", "Shell", "XML", "TypeScript", "SQL", "Batch", "zsh", "JSON", "CSS", "Other"]
-    y-axis "Lines" 0 --> 3600
-    bar [3484, 1687, 1089, 693, 404, 175, 123, 97, 82, 58, 55, 47, 410]
+    x-axis ["Markdown", "Java", "YAML", "Gradle", "Shell", "XML", "JSON", "TypeScript", "SQL", "Batch", "zsh", "CSS", "Other"]
+    y-axis "Lines" 0 --> 6400
+    bar [6341, 3484, 1690, 693, 404, 175, 136, 123, 97, 82, 58, 47, 410]
 ```
 
 | Language | Files | Lines | Notes |
 |---|---|---|---|
+| Markdown | 57 | 6,341 | 47 wiki pages under `droid-wiki/` (5,251 lines); of the other 10, `AGENTS.md` alone is 574 lines |
 | Java | 51 | 3,484 | 34 main (2,158 lines), 17 test (1,326 lines) |
-| YAML (`.yml` + `.yaml`) | 31 | 1,687 | 12 GitHub workflows, Kubernetes manifests, `application.yml` |
-| Markdown | 10 | 1,089 | `AGENTS.md` alone is 573 lines |
+| YAML (`.yml` + `.yaml`) | 31 | 1,690 | 12 GitHub workflows, Kubernetes manifests, `application.yml` |
 | Gradle | 2 | 693 | `build.gradle` is 692 of them |
 | Shell (`.sh`) | 5 | 404 | Everything under `scripts/` |
 | XML | 3 | 175 | Checkstyle, PMD and Logback configs |
@@ -28,7 +30,7 @@ xychart-beta horizontal
 | SQL | 2 | 97 | The Flyway migration and `scripts/bootstrap-lab-db.sql` |
 | Batch | 1 | 82 | `gradlew.bat` |
 | zsh | 3 | 58 | The Docker image scripts at the repo root |
-| JSON | 3 | 55 | |
+| JSON | 4 | 136 | Includes `droid-wiki/.wiki-meta.json` (81 lines) |
 | CSS | 1 | 47 | `src/main/frontend/themes/mockingbird/styles.css` |
 | Other | 10 | 410 | `.properties` files, `gradlew`, Dockerfiles, dotfiles, the pre-commit hook |
 
@@ -39,12 +41,13 @@ xychart-beta horizontal
 | Application source | 36 | 34 Java files under `src/main/java`, the theme CSS, the Flyway migration |
 | Tests | 19 | 17 JUnit classes under `src/test/java`, 2 Playwright files under `qa/` |
 | Configuration | 39 | 31 YAML files, 3 XML rule/logging configs, 3 JSON files, 2 `.properties` files |
+| Generated documentation | 48 | The 47 pages of this wiki plus `droid-wiki/.wiki-meta.json` |
 
 The test-to-code ratio for Java is 0.61 (1,326 test lines per 2,158 main lines). Coverage gates are described in [testing](how-to-contribute/testing.md).
 
 ## Activity
 
-The whole history is 40 commits between 2026-09-26 and 2026-11-04. Almost all of it landed in the first three days; see [lore](lore.md) for what each burst was about.
+The whole history is 42 commits between 2026-09-26 and 2026-11-04. Almost all of it landed in the first three days; see [lore](lore.md) for what each burst was about.
 
 | ISO week | Dates | Commits |
 |---|---|---|
@@ -54,26 +57,26 @@ The whole history is 40 commits between 2026-09-26 and 2026-11-04. Almost all of
 | 2026-W42 | Oct 12-18 | 0 |
 | 2026-W43 | Oct 19-25 | 1 |
 | 2026-W44 | Oct 26-Nov 1 | 0 |
-| 2026-W45 | Nov 2-8 | 5 |
+| 2026-W45 | Nov 2-8 | 7 |
 
 ```mermaid
 xychart-beta
     title "Commits per ISO week"
     x-axis ["W39", "W40", "W41", "W42", "W43", "W44", "W45"]
     y-axis "Commits" 0 --> 26
-    bar [25, 9, 0, 0, 1, 0, 5]
+    bar [25, 9, 0, 0, 1, 0, 7]
 ```
 
-By day, 2026-09-27 alone has 24 commits, 2026-09-28 has 8, and 2026-11-04 has 4.
+By day, 2026-09-27 alone has 24 commits, 2026-09-28 has 8, and 2026-11-04 has 6.
 
 ### Churn hotspots
 
-Files touched by the most commits (`git log --name-only`):
+Files touched by the most commits (`git log --name-only`). The wiki pages have one commit each so far and do not appear here.
 
 | File | Commits |
 |---|---|
+| `AGENTS.md` | 15 |
 | `build.gradle` | 14 |
-| `AGENTS.md` | 14 |
 | `src/main/resources/application.yml` | 7 |
 | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | 7 |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | 6 |
@@ -84,15 +87,15 @@ Files touched by the most commits (`git log --name-only`):
 | `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | 5 |
 | `.gitignore` | 5 |
 
-`build.gradle` and `AGENTS.md` tie for the lead because nearly every tooling change added a Gradle task and a matching paragraph of documentation. `scripts/validate-agents-md.sh`, wired into `check` as `validateAgentsMd`, fails the build if `AGENTS.md` mentions a Gradle task or file path that no longer exists (see [tooling](how-to-contribute/tooling.md)).
+`AGENTS.md` and `build.gradle` lead because nearly every tooling change added a Gradle task and a matching paragraph of documentation. `AGENTS.md` pulled one ahead with `f97b7a4`, which changed only documentation and a workflow. `scripts/validate-agents-md.sh`, wired into `check` as `validateAgentsMd`, fails the build if `AGENTS.md` mentions a Gradle task or file path that no longer exists (see [tooling](how-to-contribute/tooling.md)).
 
 ### Bot-attributed commits
 
-| Kind | Commits | Share of 40 |
+| Kind | Commits | Share of 42 |
 |---|---|---|
-| Carries a `Co-authored-by: factory-droid[bot]` trailer | 33 | 82.5% |
-| Authored by `dependabot[bot]` | 1 | 2.5% |
-| Either of the above | 34 | 85.0% |
+| Carries a `Co-authored-by: factory-droid[bot]` trailer | 35 | 83.3% |
+| Authored by `dependabot[bot]` | 1 | 2.4% |
+| Either of the above | 36 | 85.7% |
 
 Treat these as lower bounds. They only count commits where the trailer or bot author was recorded, and any agent help without a trailer is invisible to `git log`. The single Dependabot commit is `77317b7` (2026-09-28), which bumped Playwright in `qa/` from 1.49.1 to 1.63.0.
 
@@ -119,10 +122,12 @@ The Vaadin views are the heaviest code because each one builds its layout, styli
 
 ### Largest files
 
+Excluding `droid-wiki/`. The largest wiki page is `droid-wiki/reference/configuration.md` at 224 lines, which would rank fifth.
+
 | File | Lines |
 |---|---|
 | `build.gradle` | 692 |
-| `AGENTS.md` | 573 |
+| `AGENTS.md` | 574 |
 | `gradlew` | 248 |
 | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | 239 |
 | `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | 208 |

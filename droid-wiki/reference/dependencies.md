@@ -135,7 +135,7 @@ Every action except one is referenced by a major-version tag (or a branch) rathe
 
 | Action | Ref | Workflows |
 | --- | --- | --- |
-| `actions/checkout` | `v5`; `v6` in `droid-wiki-refresh` (required by `create-pull-request` v8) | `ci`, `codeql`, `dast`, `droid-review`, `droid`, `publish-image`, `release`, `secret-scan`, `droid-wiki-refresh` |
+| `actions/checkout` | `v5`; `v6` in `droid-wiki-refresh` | `ci`, `codeql`, `dast`, `droid-review`, `droid`, `publish-image`, `release`, `secret-scan`, `droid-wiki-refresh` |
 | `actions/setup-java` | `v5` (Temurin 21) | `ci`, `codeql`, `dast` |
 | `gradle/actions/setup-gradle` | `v4` | `ci`, `dast` |
 | `actions/upload-artifact` | `v4` | `ci`, `dast`, `droid-wiki-refresh` |

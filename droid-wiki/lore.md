@@ -11,7 +11,9 @@ graph LR
     E --> F["Nov 3: SED-649 reveal"]
     F --> G["Nov 4: SED-727 version and k3d"]
     G --> H["Nov 4: wiki refresh CI"]
-    H --> I["Nov 4: checkout v6 fix"]
+    H --> I["Nov 4: checkout v6 bump"]
+    I --> J["Nov 4: first wiki PR"]
+    J --> K["Nov 4: skip wiki-only pushes"]
 ```
 
 ## Era 1: the scaffold (2026-09-26)
@@ -27,7 +29,7 @@ There was no login, no tests, and the schema came from Hibernate's `ddl-auto: up
 
 ## Era 2: the hardening day (2026-09-27)
 
-Sunday 2026-09-27 has 24 of the repository's 40 commits, from 10:11 to 22:05. In rough order:
+Sunday 2026-09-27 has 24 of the repository's 42 commits, from 10:11 to 22:05. In rough order:
 
 **Container scripts, morning.** `44ea180` (10:11) added `scripts/create-postgres-container.zsh`, and `098c960` deleted it six minutes later as "removed uneeded script". The root-level `createLocalDockerImage.zsh`, `createDockerHubImage.zsh` and `runDockerImage.zsh` arrived at 10:22 (`1f167d7`). `ef23e06` (10:58) fixed a port mismatch in `runDockerImage.zsh` (8090 vs the app's 8080), added `.dockerignore` and `.env.example`, and moved the datasource settings to explicit env-var overrides.
 
@@ -71,9 +73,11 @@ Monday morning opened with the repository's only Dependabot commit (`77317b7`, 0
 | 2026-11-04 | `736990a` | SED-727: build version in `/actuator/info`, the startup log and the top bar ([build version](features/build-version.md)) |
 | 2026-11-04 | `5fbf51f` | Local k3d deployment with its own in-cluster Postgres ([local k3d](deployment/local-k3d.md)) |
 | 2026-11-04 | `3b03ecd` | `.github/workflows/droid-wiki-refresh.yml`, which regenerates this wiki on every push to `master` and proposes the pages as a PR ([tooling](how-to-contribute/tooling.md#wiki-refresh)) |
-| 2026-11-04 | `2b3e914` | Both checkout steps in the wiki refresh moved from `actions/checkout@v4` to `@v6`, after the first run generated the wiki but could not push the rolling branch ([pitfalls](background/pitfalls.md#create-pull-request-v8-needs-checkout-v6)) |
+| 2026-11-04 | `2b3e914` | Both checkout steps in the wiki refresh moved from `actions/checkout@v4` to `@v6`, after the first run generated the wiki but could not push the rolling branch. It did not fix the push: the real cause was an invalid `FACTORY_WIKI_PR_TOKEN` secret, and replacing it did ([pitfalls](background/pitfalls.md#a-bad-factory_wiki_pr_token-looks-like-a-missing-credential)) |
+| 2026-11-04 | `33ecb9c` | The first "docs: refresh wiki" PR (#6), which committed `droid-wiki/` to `master`. Before merge it picked up a round of review fixes to five pages, among them the CSRF exemption for `/login` and Dependabot's security-update cooldown bypass |
+| 2026-11-04 | `f97b7a4` | PR #8 added `paths-ignore: droid-wiki/**` to the wiki refresh trigger. Merging #6 had started a run that only recounted the merged pages and opened yet another wiki PR ([tooling](how-to-contribute/tooling.md#wiki-refresh)) |
 
-The November commits are the first to arrive as numbered PRs (#1 to #5) and the first to carry Linear `SED-` keys. Dependabot's commit from September is also labelled "(#1)". GitHub numbers issues and PRs in one sequence per repository, so the two "#1"s probably come from different repositories, for example an earlier copy of this one. That is a guess; the git history does not say.
+The November commits are the first to arrive as numbered PRs (#1 to #8, with no #7 on `master`) and the first to carry Linear `SED-` keys. Dependabot's commit from September is also labelled "(#1)". GitHub numbers issues and PRs in one sequence per repository, so the two "#1"s probably come from different repositories, for example an earlier copy of this one. That is a guess; the git history does not say.
 
 ## Longest-standing pieces
 
