@@ -1,0 +1,20 @@
+# k3d's bundled Traefik. *.localhost resolves to 127.0.0.1 in browsers and
+# curl, so no /etc/hosts entry is needed; the host port is whatever the k3d
+# loadbalancer maps to the cluster's port 80 (see AGENTS.md).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mockingbird-app
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: mockingbird.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mockingbird-app
+                port:
+                  name: http

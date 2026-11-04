@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mockingbird-app
+  labels:
+    app: mockingbird-app
+spec:
+  # Single replica on purpose: Vaadin keeps UI state in the server-side HTTP
+  # session, so scaling past 1 would need sticky sessions on the Traefik
+  # service (traefik.ingress.kubernetes.io/service.sticky.cookie).
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: mockingbird-app
+  template:
+    metadata:
+      labels:
+        app: mockingbird-app
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until pg_isready -h postgres -p 5432; do echo waiting for postgres; sleep 2; done"]
+      containers:
+        - name: app
+          # Built locally and loaded with `k3d image import` (no registry).
+          # scripts/k3d-deploy.sh overrides the tag per build so every
+          # redeploy rolls the pod; :dev is also imported as a fallback for a
+          # plain `kubectl apply -k k8s/local`.
+          image: mockingbird-bank:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: mockingbird-dev-app-config
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mockingbird-dev-db
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mockingbird-dev-db
+                  key: POSTGRES_PASSWORD
+          # Spring + Flyway + Vaadin startup takes 20-60s; the startup probe
+          # gives it up to 3 minutes before liveness takes over.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          # Full health (includes the DB check), so traffic stops if Postgres
+          # goes away without the pod being restarted for it.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mockingbird-app
+  labels:
+    app: mockingbird-app
+spec:
+  type: ClusterIP
+  selector:
+    app: mockingbird-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
