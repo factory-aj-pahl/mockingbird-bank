@@ -1,6 +1,8 @@
 package com.mockingbirdbank.ui.layout;
 
+import com.mockingbirdbank.config.FeatureFlagService;
 import com.mockingbirdbank.model.AccountHolder;
+import com.mockingbirdbank.observability.BuildVersion;
 import com.mockingbirdbank.service.AccountService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -9,13 +11,15 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.security.AuthenticationContext;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 import jakarta.annotation.security.PermitAll;
 
 /**
- * The dark top bar shared by every view: the bird wordmark on the left, the signed-in holder's name
- * and a sign-out button (wired to Spring Security's logout via Vaadin's {@link
+ * The dark top bar shared by every view: the bird wordmark on the left (with, behind the {@code
+ * showBuildVersion} flag, the running build's version directly underneath it), the signed-in
+ * holder's name and a sign-out button (wired to Spring Security's logout via Vaadin's {@link
  * AuthenticationContext}) on the right. Individual views render everything below it.
  *
  * <p>Vaadin's navigation access control requires a parent layout to grant access independently of
@@ -33,7 +37,11 @@ public class MainLayout extends AppLayout {
     // fields that hold it must be transient.
     private final transient AuthenticationContext authenticationContext;
 
-    public MainLayout(AccountService accountService, AuthenticationContext authenticationContext) {
+    public MainLayout(
+            AccountService accountService,
+            AuthenticationContext authenticationContext,
+            FeatureFlagService featureFlagService,
+            BuildVersion buildVersion) {
         this.authenticationContext = authenticationContext;
         AccountHolder holder = accountService.currentHolder();
 
@@ -43,7 +51,15 @@ public class MainLayout extends AppLayout {
         wordmark.addClassNames(LumoUtility.FontSize.XLARGE, LumoUtility.Margin.NONE);
         wordmark.getStyle().set("font-family", "Georgia, serif").set("color", "var(--mb-ivory)");
 
-        HorizontalLayout brand = new HorizontalLayout(mark, wordmark);
+        VerticalLayout wordmarkStack = new VerticalLayout(wordmark);
+        wordmarkStack.setPadding(false);
+        wordmarkStack.setSpacing(false);
+        wordmarkStack.setSizeUndefined();
+        if (featureFlagService.showBuildVersion()) {
+            wordmarkStack.add(buildVersionLabel(buildVersion));
+        }
+
+        HorizontalLayout brand = new HorizontalLayout(mark, wordmarkStack);
         brand.setAlignItems(FlexLayout.Alignment.CENTER);
         brand.setSpacing(true);
 
@@ -75,6 +91,19 @@ public class MainLayout extends AppLayout {
         bar.getStyle().set("background", "var(--mb-navy)");
 
         addToNavbar(bar);
+    }
+
+    private static Span buildVersionLabel(BuildVersion buildVersion) {
+        Span label = new Span(buildVersion.displayVersion());
+        label.setId("build-version");
+        label.setTitle(
+                "Mockingbird Bank " + buildVersion.version() + " - " + buildVersion.details());
+        label.getStyle()
+                .set("color", "var(--mb-ivory-muted)")
+                .set("font-size", "0.75rem")
+                .set("line-height", "1")
+                .set("font-family", "var(--lumo-font-family-monospace, monospace)");
+        return label;
     }
 
     // On a fresh full-page load the browser briefly renders light mode before this JS runs

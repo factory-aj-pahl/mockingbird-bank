@@ -182,8 +182,12 @@ Override one per-environment with a `MOCKINGBIRD_FEATURE_FLAGS_<NAME>` env var (
 binding maps it automatically) - no code change or redeploy needed, just a different value for
 that variable (e.g. in a k8s manifest or `docker run -e`). `FeatureFlagService` is the typed,
 call-site-facing API (`showAccountNumberOnDashboard()`, `showWelcomeBanner()`,
-`allowAccountNumberReveal()`); `DashboardView`, `AccountCard`, and `AccountDetailView` use it to
-gate small, genuinely optional pieces of UI. `allowAccountNumberReveal` (default on) controls the
+`allowAccountNumberReveal()`, `showBuildVersion()`); `DashboardView`, `AccountCard`,
+`AccountDetailView`, and `MainLayout` use it to gate small, genuinely optional pieces of UI.
+`showBuildVersion` (the running version in the top bar - see [Build version](#build-version))
+deliberately defaults to **on**, an exception to the "default matches today's behavior" rule; turn
+it off per environment with `MOCKINGBIRD_FEATURE_FLAGS_SHOW_BUILD_VERSION=false`.
+`allowAccountNumberReveal` (default on) controls the
 eye buttons next to masked account numbers: `AccountNumberDisplay` fetches the full number from
 `AccountService.revealAccountNumber` only when clicked (ownership-checked and recorded as an
 `account_number.revealed` analytics event, never logged itself), and re-masks after 30 seconds or
@@ -192,6 +196,38 @@ reveal all of the signed-in holder's accounts in one call. Current values are
 visible read-only at `/actuator/featureflags` (`FeatureFlagsEndpoint`) for ops visibility. Add a
 new flag by adding one field to `FeatureFlagsProperties` (with a default matching current
 behavior) and one accessor on `FeatureFlagService`.
+
+## Build version
+
+Every build knows which version and commit it is, so "what's deployed?" is answered by the running
+app rather than by remembering which image tag got pushed.
+
+- **Version string**: `<baseVersion>-<short sha>`, plus `-dirty` if the working tree had
+  uncommitted changes - e.g. `0.1.0-09f771a`. `baseVersion` lives in `gradle.properties`. A tagged
+  release (`release.yml`) passes `-PappVersion` instead, so `v0.2.0` builds as plain `0.2.0`.
+- **Where it comes from**: the top of `build.gradle` resolves the commit, branch, dirty flag and
+  commit time from `git`; Spring Boot's `buildInfo()` writes `build-info.properties` (in `META-INF`) and
+  `./gradlew generateGitProperties` writes `git.properties`. Build time is recorded only for image
+  builds (the Dockerfile passes `-PbuildTime`) - an always-changing timestamp would make every
+  local test run out of date.
+- **Docker builds**: `.dockerignore` excludes `.git`, so `scripts/build-metadata.sh` computes the
+  same values from the host checkout and every image build path passes them as build args
+  (`APP_VERSION`, `GIT_COMMIT`, `GIT_BRANCH`, `GIT_DIRTY`, `GIT_COMMIT_TIME`). A `docker build`
+  without them still works; the app just reports `unknown`. The image also carries
+  `org.opencontainers.image.version`/`revision` labels (`docker inspect`).
+
+To check what's running:
+
+```
+curl localhost:8080/actuator/info
+# {"build":{"version":"0.1.0-09f771a",...},"git":{"branch":"master","commit":{"id":"09f771a",...}}}
+```
+
+`/actuator/info` is public (like `/actuator/health`) and deliberately limited to the build and git
+basics - `management.info.defaults.enabled: false` switches every other contributor (JVM, OS,
+environment) off. The app also logs one `Mockingbird Bank <version> started (commit ...)` line at
+startup (`BuildVersion`, in `observability`), and signed-in users see the version in the top bar,
+directly under the Mockingbird Bank wordmark (`showBuildVersion` flag).
 
 ## Product analytics & error insight
 
@@ -248,7 +284,10 @@ Two things feed it without any call-site code at all:
 
 `Dockerfile` is a two-stage build: `./gradlew -Pvaadin.productionMode=true clean
 bootJar` in a JDK image, then just the resulting jar copied into a slim JRE
-image. `createDockerHubImage.zsh` needs `docker login` done first and pushes
+image. Both build scripts (and both image-publishing workflows) pass the build
+args from `scripts/build-metadata.sh`, so the image reports its real version
+and commit - see [Build version](#build-version). `createDockerHubImage.zsh`
+needs `docker login` done first and pushes
 to Docker Hub directly - there's no CI automation for that push yet (see
 `.github/workflows/publish-image.yml` for the closest automated equivalent,
 which publishes to GHCR on every push to `master` instead).
@@ -299,7 +338,10 @@ step needed.
   it against a real Postgres, and runs an OWASP ZAP baseline scan against it
   on every push to `master` and weekly; the HTML/JSON report is uploaded as a
   workflow artifact for manual triage (it doesn't fail the build - baseline
-  findings need a human to separate "noise" from "actual problem").
+  findings need a human to separate "noise" from "actual problem"). An
+  information-disclosure finding for the public `/actuator/info` is expected:
+  it's intentionally public and limited to version/commit (see
+  [Build version](#build-version)).
 - **Dependabot** (`.github/dependabot.yml`) covers Gradle, both npm projects
   (root and `qa/`), Docker, and GitHub Actions, weekly, with a cooldown period
   (3-14 days depending on SemVer bump size) so a newly published version has

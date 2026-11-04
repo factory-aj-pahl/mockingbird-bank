@@ -13,8 +13,46 @@ plugins {
 }
 
 group = 'com.mockingbirdbank'
-version = '0.1.0-SNAPSHOT'
 description = 'Mockingbird Bank - read-only account dashboard SPA'
+
+// Build metadata - see AGENTS.md's "Build version" section. The Docker build stage has no .git
+// (.dockerignore excludes it), so every value can be passed in as a -P property instead (the
+// Dockerfile forwards its build args that way); otherwise git itself is asked. Anything still
+// missing is reported as "unknown" rather than failing the build.
+def optionalProperty = { String name ->
+    def value = findProperty(name)?.toString()?.trim()
+    return value ? value : null
+}
+def gitOutput = { List<String> args ->
+    if (!file('.git').exists()) {
+        return null
+    }
+    try {
+        def process = (['git'] + args).execute(null, rootDir)
+        def stderr = new StringBuilder()
+        process.consumeProcessErrorStream(stderr)
+        def stdout = process.text.trim()
+        process.waitFor()
+        return process.exitValue() == 0 ? stdout : null
+    } catch (IOException ignored) {
+        return null
+    }
+}
+def gitCommit = optionalProperty('gitCommit') ?: gitOutput(['rev-parse', 'HEAD']) ?: 'unknown'
+def gitCommitShort = gitCommit == 'unknown' ? 'unknown' : gitCommit.take(7)
+def gitBranch = optionalProperty('gitBranch') ?: gitOutput(['rev-parse', '--abbrev-ref', 'HEAD'])
+if (gitBranch == 'HEAD') {
+    gitBranch = 'detached'
+}
+gitBranch = gitBranch ?: 'unknown'
+// Not "?:" for the porcelain output - a clean tree prints nothing, which Groovy treats as falsy.
+def gitStatus = gitOutput(['status', '--porcelain'])
+def gitDirty = optionalProperty('gitDirty')
+        ?: (gitStatus == null ? 'unknown' : (gitStatus.isEmpty() ? 'false' : 'true'))
+def gitCommitTime = optionalProperty('gitCommitTime') ?: gitOutput(['show', '-s', '--format=%ct', 'HEAD'])
+
+version = optionalProperty('appVersion')
+        ?: "${baseVersion}-${gitCommitShort}${gitDirty == 'true' ? '-dirty' : ''}".toString()
 
 java {
     toolchain {
@@ -106,6 +144,43 @@ dependencies {
 vaadin {
     // Flip to true (or set via -Pvaadin.productionMode) when building a deployable jar.
     productionMode = false
+}
+
+// META-INF/build-info.properties -> Spring Boot's BuildProperties bean (/actuator/info's "build"
+// section, BuildVersion). Build time is only recorded when passed in (the Dockerfile does): an
+// always-changing timestamp would make the resources, and so every test task, out of date on every
+// single run.
+springBoot {
+    buildInfo {
+        def buildTime = optionalProperty('buildTime')
+        if (buildTime) {
+            properties {
+                time = buildTime
+            }
+        } else {
+            excludes = ['time']
+        }
+    }
+}
+
+// git.properties -> Spring Boot's GitProperties bean (/actuator/info's "git" section). Written by
+// hand instead of via a git-properties plugin because those need a .git directory, which the Docker
+// build doesn't have - values come from the gitCommit/gitBranch/... resolution at the top of this
+// file instead.
+def generateGitProperties = tasks.register('generateGitProperties', WriteProperties) {
+    group = 'build'
+    description = 'Writes git.properties (commit, branch, dirty flag) for /actuator/info.'
+    destinationFile = layout.buildDirectory.file('generated/git/git.properties')
+    property('git.commit.id', gitCommit)
+    property('git.commit.id.abbrev', gitCommitShort)
+    property('git.branch', gitBranch)
+    property('git.dirty', gitDirty)
+    if (gitCommitTime) {
+        property('git.commit.time', gitCommitTime)
+    }
+}
+tasks.named('processResources') {
+    from(generateGitProperties)
 }
 
 // Finds genuinely unused dependencies and dependencies used but only pulled

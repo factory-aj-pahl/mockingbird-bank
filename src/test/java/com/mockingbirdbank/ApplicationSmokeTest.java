@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -51,6 +52,18 @@ class ApplicationSmokeTest {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("\"status\":\"UP\"")));
+    }
+
+    @Test
+    void infoEndpointIsPublicAndReportsOnlyBuildAndGitBasics() throws Exception {
+        mockMvc.perform(get("/actuator/info"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.build.version").isNotEmpty())
+                .andExpect(jsonPath("$.git.commit.id").isNotEmpty())
+                .andExpect(jsonPath("$.git.branch").isNotEmpty())
+                .andExpect(jsonPath("$.java").doesNotExist())
+                .andExpect(jsonPath("$.os").doesNotExist())
+                .andExpect(jsonPath("$.process").doesNotExist());
     }
 
     @Test

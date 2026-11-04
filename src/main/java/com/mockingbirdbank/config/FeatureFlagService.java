@@ -31,12 +31,17 @@ public class FeatureFlagService {
         return properties.isAllowAccountNumberReveal();
     }
 
+    public boolean showBuildVersion() {
+        return properties.isShowBuildVersion();
+    }
+
     /** All known flags and their current values, in declaration order. */
     public Map<String, Boolean> allFlags() {
         Map<String, Boolean> flags = new LinkedHashMap<>();
         flags.put("showAccountNumberOnDashboard", showAccountNumberOnDashboard());
         flags.put("showWelcomeBanner", showWelcomeBanner());
         flags.put("allowAccountNumberReveal", allowAccountNumberReveal());
+        flags.put("showBuildVersion", showBuildVersion());
         return flags;
     }
 }

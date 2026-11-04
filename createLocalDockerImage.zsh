@@ -6,6 +6,9 @@ if [ -z "$1" ]; then
   exit 1;
 fi
 
-docker buildx build --platform linux/arm64 --load --tag ajpahl1008/mockingbird-bank:${1} .
+# Unquoted on purpose: zsh word-splits command substitution, turning the output
+# into separate --build-arg flags (values never contain spaces).
+docker buildx build --platform linux/arm64 --load $(./scripts/build-metadata.sh --docker-args) \
+--tag ajpahl1008/mockingbird-bank:${1} .
 
 echo "Build Complete: ajpahl1008/mockingbird-bank:${1} "
