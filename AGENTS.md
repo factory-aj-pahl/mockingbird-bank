@@ -403,10 +403,11 @@ step needed.
   repository secret and the Factory Droid GitHub App installed to actually
   run.
 - **Wiki refresh**: `.github/workflows/droid-wiki-refresh.yml` regenerates the
-  Factory Wiki (`droid exec "/wiki"`) on every push to `master`, one run at a
-  time. A read-only job generates the pages, starting from the previous wiki
-  on the rolling factory/droid-wiki branch so only pages whose code changed
-  are rewritten; a separate publish job then pushes the generated droid-wiki
+  Factory Wiki (`droid exec "/wiki"`) on every push to `master` that changes
+  something outside droid-wiki (so merging the wiki PR does not start another
+  refresh), one run at a time. A read-only job generates the pages, starting
+  from the previous wiki on the rolling factory/droid-wiki branch so only pages
+  whose code changed are rewritten; a separate publish job then pushes the generated droid-wiki
   directory to that branch and opens (or updates) one "docs: refresh wiki" PR.
   Needs `FACTORY_API_KEY`, plus a `FACTORY_WIKI_PR_TOKEN` fine-grained PAT
   (contents + pull-requests write, this repo only) so required checks run on
