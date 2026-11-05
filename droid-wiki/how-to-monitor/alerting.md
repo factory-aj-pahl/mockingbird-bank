@@ -37,6 +37,7 @@ Forks and repos without the secret get a log line and a green step. If the secre
 | Source | What happens | Where to look |
 | --- | --- | --- |
 | DAST (`.github/workflows/dast.yml`) | ZAP baseline scan of `/login` on every `master` push, Mondays at 04:23 UTC, and on demand. `fail_action: false` and `allow_issue_writing: false`, so findings never fail the job, open issues or post to Slack. | `zap-baseline-report` artifact (HTML, Markdown, JSON), kept 30 days |
+| Droid functional QA (`.github/workflows/qa.yml`) | Runs on PRs that touch app code. Steps use `continue-on-error`, so a FAIL or BLOCKED row leaves the check green and nothing goes to Slack | The sticky "QA Report" PR comment and the `qa-results` artifact, kept 14 days. See [Functional QA](../how-to-contribute/functional-qa.md) |
 | GitHub Deployments | Success or failure per published image | Repo Deployments tab, or `gh api repos/<owner>/<repo>/deployments` |
 | CodeQL, gitleaks | Normal check results; a failure on `master` is not sent to Slack | Security tab, Actions tab |
 | Backlog grooming (`.github/workflows/stale.yml`) | Daily at 06:00 UTC: issues and PRs idle for 60 days get a `stale` label and a comment, then close 14 days later. `priority: high`, `pinned` and `security` labels and draft PRs are exempt. | Comments on the issue or PR |

@@ -47,6 +47,7 @@ graph LR
 ## Where tests cover features
 
 - Browser flow: `qa/tests/dashboard.spec.ts` (Playwright) signs in, checks the dashboard and one account's transactions, signs out, checks a wrong password is rejected, exercises the eye toggles, and checks the build version label position. Run it with `./scripts/run-interactive-qa.sh`.
+- Functional QA: the Droid skill in `.factory/skills/qa-web/SKILL.md` has one flow per feature (W2 sign-in, W4 dashboard, W5 account detail, W6 reveal, W7 build version, W13 flag variants) and runs the ones a diff touches. See [Functional QA](../how-to-contribute/functional-qa.md).
 - Service logic: `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` and `src/test/java/com/mockingbirdbank/service/TransactionServiceTest.java`.
 - Login over HTTP: `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java`.
 

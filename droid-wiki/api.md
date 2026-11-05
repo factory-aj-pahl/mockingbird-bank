@@ -50,7 +50,7 @@ Standard Actuator health, including the database check. It is public because pro
 | LAB readiness probe, `k8s/03-app.yaml` | `/actuator/health` |
 | k3d startup and liveness probes, `k8s/local/app.yaml` | `/actuator/health/liveness` |
 | k3d readiness probe, `k8s/local/app.yaml` | `/actuator/health` (includes the DB, so traffic stops when Postgres goes away) |
-| `.github/workflows/dast.yml`, `.github/workflows/publish-image.yml`, `scripts/run-interactive-qa.sh` | `/actuator/health`, waiting for `"status":"UP"` |
+| `.github/workflows/dast.yml`, `.github/workflows/publish-image.yml`, `.github/workflows/qa.yml`, `scripts/run-interactive-qa.sh` | `/actuator/health`, waiting for `"status":"UP"` |
 
 The `liveness` and `readiness` groups exist in the k3d deploy because `k8s/local/kustomization.yaml` sets `MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED=true`. `application.yml` does not set it.
 

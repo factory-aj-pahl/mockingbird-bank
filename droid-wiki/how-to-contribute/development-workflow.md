@@ -11,7 +11,7 @@ graph TD
     C --> D[git commit runs pre-commit hook]
     D --> E[Open PR against master]
     E --> F[CI fast-checks and test jobs]
-    E --> G[Labeler, Droid review, CodeQL, gitleaks]
+    E --> G[Labeler, Droid review, Droid QA, CodeQL, gitleaks]
     F --> H[Owner review and conversations resolved]
     G --> H
     H --> I[Merge to master]
@@ -32,7 +32,7 @@ Follow [Patterns and conventions](patterns-and-conventions.md). While iterating,
 ./gradlew build                                           # the full definition of done
 ```
 
-Run the app with `./scripts/dev-up.sh` to see a UI change, and `./scripts/run-interactive-qa.sh` for the browser smoke test. Details are in [Testing](testing.md).
+Run the app with `./scripts/dev-up.sh` to see a UI change, and `./scripts/run-interactive-qa.sh` for the browser smoke test. To have Droid check the change the way a user would, run `/qa`; it picks flows from your diff and tests the working tree on k3d or a local server. Details are in [Testing](testing.md) and [Functional QA](functional-qa.md).
 
 ## 3. Commit
 
@@ -65,6 +65,7 @@ Fill in `.github/pull_request_template.md`: what and why, how it was verified, a
 | `.github/workflows/ci.yml` | Two parallel jobs, described below |
 | `.github/workflows/labeler.yml` | Adds `area: *` labels from changed paths (`sync-labels: true`, so it also removes stale ones) |
 | `.github/workflows/droid-review.yml` | Automated code review plus security review, skipped for drafts |
+| `.github/workflows/qa.yml` | When app code changed: builds and boots the branch, runs Droid functional QA and posts or updates one "QA Report" comment. Informational, never blocks merge. See [Functional QA](functional-qa.md#the-qa-workflow) |
 | `.github/workflows/codeql.yml` | CodeQL `java-kotlin` analysis |
 | `.github/workflows/secret-scan.yml` | gitleaks over full history (`fetch-depth: 0`) |
 

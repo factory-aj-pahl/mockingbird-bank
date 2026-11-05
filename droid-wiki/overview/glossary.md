@@ -28,3 +28,9 @@ Terms used in the code, configuration and this wiki.
 | Harness | The CD tool that templates `k8s/*.yaml` using `<+...>` expressions resolved from `k8s/values.yaml`. |
 | SED | The Linear team key for this project's issues (for example `SED-649`). |
 | `mbb-ops` | The Slack channel that CI and post-deploy alerts post to. |
+| Functional QA / `/qa` | The Droid skill in `.factory/skills/qa/` that tests a diff through the real UI and writes a QA Report. See [Functional QA](../how-to-contribute/functional-qa.md). |
+| QA flow (W1 to W14) | One numbered test in `.factory/skills/qa-web/SKILL.md`, such as W6 (account number reveal) or W11 (cross-account isolation). |
+| QA target | Where `/qa` tests: `k3d` (default), `local`, `ci` (the PR runner) or `lab` (never for branch QA). |
+| `other_holder` | A second, login-less holder that QA seeds with SQL to probe cross-account access, then deletes. |
+| droid-control | The Factory plugin (`droid-control@factory-plugins`, enabled in `.factory/settings.json`) the QA skill uses to drive the browser. |
+| QA Report | The sticky PR comment, marked `<!-- qa-report -->`, that `.github/workflows/qa.yml` posts and updates. |

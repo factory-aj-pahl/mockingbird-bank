@@ -8,6 +8,7 @@ Mockingbird Bank is a solo-maintained repository with a small, strict process: w
 | --- | --- |
 | [Development workflow](development-workflow.md) | Branch, commit, PR, CI, merge and what runs on `master` afterwards |
 | [Testing](testing.md) | Test layers, how to run them, retries, timings, coverage gates, known gaps |
+| [Functional QA](functional-qa.md) | The Droid `qa` skill, its flows and targets, and the PR workflow that posts a QA Report |
 | [Debugging](debugging.md) | Logs, correlation IDs, Actuator endpoints, JFR profiling, common errors |
 | [Patterns and conventions](patterns-and-conventions.md) | Code layout, DI, entity and service rules, comment style |
 | [Tooling](tooling.md) | Gradle plugins and tasks, scripts, dev container, every GitHub workflow |
@@ -39,7 +40,7 @@ A change is ready to merge when every box in `.github/pull_request_template.md` 
 - [ ] UI-facing changes that are not plain bug fixes sit behind a feature flag. See [Feature flags](../features/feature-flags.md).
 - [ ] No secrets, real customer data or PII in code, migrations, fixtures or logs.
 
-The template also asks "How was this verified?" and expects more than "should work" for UI or infra changes: say whether you ran `./scripts/run-interactive-qa.sh` or clicked through against a real Postgres.
+The template also asks "How was this verified?" and expects more than "should work" for UI or infra changes: say whether you ran `./scripts/run-interactive-qa.sh`, ran `/qa`, or clicked through against a real Postgres. For PRs that touch app code, the "QA Report" comment from `.github/workflows/qa.yml` is extra evidence, not a substitute.
 
 ## Review and merge gates
 
@@ -51,8 +52,9 @@ The template also asks "How was this verified?" and expects more than "should wo
 | No force-push or deletion of `master` | Branch protection | Admins can still bypass for direct pushes |
 | Secret scan | `.github/workflows/secret-scan.yml` | gitleaks fails the PR check on a leaked credential |
 | Automated Droid review | `.github/workflows/droid-review.yml` | Factory Droid posts a code review and a security review on every non-draft PR |
+| Droid functional QA | `.github/workflows/qa.yml` | Informational. Posts one sticky "QA Report" comment on non-draft same-repository PRs that touch app code; a FAIL row does not block merge |
 
-Mentioning `@droid` in an issue, PR body or review comment triggers `.github/workflows/droid.yml` for an ad hoc run. Both Droid workflows, and the wiki refresh in `.github/workflows/droid-wiki-refresh.yml`, need the `FACTORY_API_KEY` secret. The wiki refresh opens its own "docs: refresh wiki" PR, which goes through the same gates as any other PR.
+Mentioning `@droid` in an issue, PR body or review comment triggers `.github/workflows/droid.yml` for an ad hoc run. Both Droid workflows, the QA workflow and the wiki refresh in `.github/workflows/droid-wiki-refresh.yml` need the `FACTORY_API_KEY` secret. The wiki refresh opens its own "docs: refresh wiki" PR, which goes through the same gates as any other PR.
 
 ## Labels
 

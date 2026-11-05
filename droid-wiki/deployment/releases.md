@@ -73,7 +73,7 @@ This job checks that the pushed image starts and reaches a database.
 5. Always sets the Deployment status to `success` or `failure`, and always removes the container.
 6. On failure, posts to Slack through the `SLACK_ALERTS_WEBHOOK_URL` secret. Without the secret it logs a message and exits 0. See [Alerting](../how-to-monitor/alerting.md).
 
-The test proves the app boots, runs Flyway and reports healthy. It does not sign in or render a page; the browser-driven check is `scripts/run-interactive-qa.sh`, which runs only on demand (see [Testing](../how-to-contribute/testing.md)).
+The test proves the app boots, runs Flyway and reports healthy. It does not sign in or render a page. The browser-driven checks are `scripts/run-interactive-qa.sh`, which runs only on demand (see [Testing](../how-to-contribute/testing.md)), and the Droid QA workflow, which runs on pull requests before merge rather than against the published image (see [Functional QA](../how-to-contribute/functional-qa.md)).
 
 ### The required_contexts fix
 
