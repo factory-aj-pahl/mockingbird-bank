@@ -10,6 +10,8 @@ These are the places where a reasonable change in Mockingbird Bank breaks someth
 
 It is not exploitable today because the seed creates one holder, but it becomes a real IDOR the moment a second login exists. If you add users, fix this first: reuse the `isOwnedBy` check from `revealAccountNumber` and fail with the same not-found response for missing and foreign IDs, so callers cannot probe which IDs exist. See [account detail](../features/account-detail.md#no-ownership-check) and [cleanup opportunities](../cleanup-opportunities.md#bugs-and-gaps).
 
+The Droid QA flow W11 seeds a second, login-less holder with `.factory/skills/qa-web/sql/seed-other-holder.sql` and opens its account as Jordan, so any QA run that selects W11 reports this as a high-severity FAIL until it is fixed. That FAIL is expected, not a regression from the PR under test. See [functional QA](../how-to-contribute/functional-qa.md#flow-menu).
+
 ### The seed runs on any empty database
 
 `DataInitializer.run` returns early only if `account_holder` already has rows. Point the app at any fresh database, including a shared or LAB one, and it creates the `jordan.ellis` login with the password from `MOCKINGBIRD_DEV_PASSWORD` or the documented default `mockingbird`. There is no profile or flag guarding it. The class Javadoc still says "swap for a proper migration tool before this becomes a shared environment", although Flyway already exists. In any environment someone else can reach, set `MOCKINGBIRD_DEV_PASSWORD` or pre-populate the holder table before first start.
@@ -101,3 +103,11 @@ Inside the dev container, Testcontainers starts sibling containers on Docker's d
 When the `FACTORY_WIKI_PR_TOKEN` secret is set, `peter-evans/create-pull-request` in `.github/workflows/droid-wiki-refresh.yml` replaces the checkout credentials with that token, and the `github.token` fallback is never used. If GitHub rejects the token (expired, revoked, mistyped, or pasted with whitespace), both the fetch of `factory/droid-wiki` and the push fail with "could not read Username for 'https://github.com'", which reads like no credential was configured at all. A valid token without enough permission fails differently, with a 403 on the push. The publish step has `continue-on-error: true`, so the run still shows success and only a `::warning::` annotation reports it.
 
 The first refresh runs on `master` hit exactly this. `2b3e914` (PR #5) moved both checkout steps from v4 to v6 on the theory that the checkout version was the cause; the next run failed the same way, and replacing the secret with a valid fine-grained token fixed it. The run logs show the same failure under checkout v4 and v6. If the warning appears, check the token before changing the workflow. See [tooling](../how-to-contribute/tooling.md#wiki-refresh).
+
+### A green QA check does not mean QA passed
+
+Every setup and agent step in `.github/workflows/qa.yml` has `continue-on-error: true`, so the "Functional QA (Droid)" job normally succeeds even when the agent reports FAIL or BLOCKED rows, or crashes. The result is the "QA Report" comment, not the check status. Read the comment. If the job was skipped (draft, fork or Dependabot PR), there is no comment at all, which is easy to mistake for a pass. See [functional QA](../how-to-contribute/functional-qa.md#the-qa-workflow).
+
+### Seeding the QA holder before first start breaks the demo login
+
+`DataInitializer` seeds Jordan only when `account_holder` is empty. Running `.factory/skills/qa-web/sql/seed-other-holder.sql` against a fresh database, before the app has started once, leaves one holder with no login, and the demo sign-in then fails with valid credentials. Run the cleanup SQL and restart the app. On k3d and local, the database outlives the run, so a crashed QA run can leave "QA Other Checking" behind; both SQL files are safe to re-run.

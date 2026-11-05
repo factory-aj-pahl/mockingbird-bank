@@ -133,6 +133,7 @@ There are no unit tests under `src/test/java/com/mockingbirdbank/ui/`. The `jaco
 The UI is exercised instead by:
 
 - `./scripts/run-interactive-qa.sh`, which drives Chromium through `qa/` with Playwright: sign in, dashboard, an account's transactions, sign out, wrong password.
+- The Droid QA skill (`/qa`, and `.github/workflows/qa.yml` on PRs), which maps a diff in `ui/view/` or `ui/layout/` to the matching browser flows, such as W4 to W6 for `DashboardView` and `AccountCard` or W7 to W9 for `MainLayout`. See [Functional QA](../how-to-contribute/functional-qa.md).
 - `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java`, which boots the full context. It stops at a successful login for the MockMvc reason explained in `AGENTS.md`.
 
 See [Testing](../how-to-contribute/testing.md).

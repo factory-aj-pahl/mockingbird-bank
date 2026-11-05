@@ -95,10 +95,10 @@ xychart-beta horizontal
     title "Tracked files by type"
     x-axis ["Java", "YAML", "Markdown", "Shell/zsh", "JSON", "Other"]
     y-axis "Files" 0 --> 60
-    bar [51, 30, 10, 8, 5, 20]
+    bar [51, 34, 13, 8, 4, 23]
 ```
 
-Java splits into 34 main source files and 17 test files. See [By the numbers](../by-the-numbers.md) for line counts.
+These counts leave out the pages under `droid-wiki/`. Java splits into 34 main source files and 17 test files. See [By the numbers](../by-the-numbers.md) for line counts.
 
 ## Design choices worth knowing
 

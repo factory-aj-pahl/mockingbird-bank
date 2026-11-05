@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-04T21:44:43Z",
-  "commitHash": "f97b7a41fdab93c4912abaee9d72fa45a5fc673d",
+  "generatedAt": "2026-11-05T21:56:21Z",
+  "commitHash": "36ef6efcbd2175b30851cf463f030a58e9abfea4",
   "branch": "master",
-  "pageCount": 47,
+  "pageCount": 48,
   "topLevelSections": [
     "overview",
     "by-the-numbers",
@@ -30,6 +30,7 @@
     "how-to-contribute/index.md",
     "how-to-contribute/development-workflow.md",
     "how-to-contribute/testing.md",
+    "how-to-contribute/functional-qa.md",
     "how-to-contribute/debugging.md",
     "how-to-contribute/patterns-and-conventions.md",
     "how-to-contribute/tooling.md",
@@ -70,13 +71,22 @@
   ],
   "videoOverview": {
     "status": "ready",
-    "sizeBytes": 14430475,
+    "sizeBytes": 8995459,
     "contentType": "video/mp4",
-    "generatedAt": "2026-11-04T18:32:21.442Z",
-    "durationSeconds": 406.708333,
-    "copyFromWikiRunId": "51c16ebb-324e-44f6-b018-e84f891eba18",
+    "generatedAt": "2026-11-05T21:56:21.073Z",
+    "durationSeconds": 335.167,
+    "captionTracks": [
+      {
+        "language": "en",
+        "label": "English",
+        "sizeBytes": 8975,
+        "contentType": "text/vtt"
+      }
+    ],
     "warnings": [
-      "Video diff classification: minor, changes are below regeneration thresholds (4 commits, 2 files, 138 lines outside the generated droid-wiki/ pages); reused video from wiki run 51c16ebb-324e-44f6-b018-e84f891eba18"
+      "Video diff classification: major, 6 commits and 60 files / 6,622 changed lines since the prior video (12 files / 1,277 lines outside droid-wiki/, mainly the new Droid functional QA setup in 36ef6ef); regenerated instead of reusing the video from wiki run 939b8a8a-b4ae-4524-a57b-7d8db806ca29",
+      "hyperframes doctor reported only a version notice (0.4.44 pinned, 0.9.17 available); all dependency checks passed",
+      "Caption cue boundaries come from per-sentence TTS segment timings; cues inside a sentence are split proportionally by length rather than from word-level timestamps"
     ]
   }
 }

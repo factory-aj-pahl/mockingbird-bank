@@ -159,7 +159,7 @@ Limits worth knowing:
 | `k8s/01-app-db-secret.yaml` | `Secret` `mockingbird-db-credentials` | Go-templated from `k8s/values.yaml`, where `dbPassword` is `<+secrets.getValue("postgres-lab-secret")>`. Harness resolves it from its secret manager at deploy time, so the real password is never in git. See [LAB cluster](deployment/lab-cluster.md). |
 | `k8s/local/kustomization.yaml` | `secretGenerator` `mockingbird-dev-db` | Throwaway credentials for the k3d-only database, labelled LOCAL DEV ONLY. See [Local k3d](deployment/local-k3d.md). |
 | `MOCKINGBIRD_DEV_PASSWORD` | Demo login password | Read by `DataInitializer`; defaults to `mockingbird`. |
-| GitHub secrets | `FACTORY_API_KEY`, `FACTORY_WIKI_PR_TOKEN` (optional), `SLACK_ALERTS_WEBHOOK_URL` | Used by the Droid, wiki refresh and alerting workflows. See [Configuration](reference/configuration.md#ci-secrets). |
+| GitHub secrets | `FACTORY_API_KEY`, `FACTORY_WIKI_PR_TOKEN` (optional), `QA_EVIDENCE_TOKEN` (optional), `SLACK_ALERTS_WEBHOOK_URL` | Used by the Droid, QA, wiki refresh and alerting workflows. See [Configuration](reference/configuration.md#ci-secrets). |
 
 ### The demo seed
 
@@ -178,6 +178,7 @@ Limits worth knowing:
 | Branch protection | Repository settings | Per `AGENTS.md`: CI must pass, no force-push or deletion, conversations resolved. Admins can bypass. |
 | Droid review | `.github/workflows/droid-review.yml` | `Factory-AI/droid-action@main` with `automatic_review: true` and `automatic_security_review: true` on non-draft PRs. Needs `FACTORY_API_KEY`. |
 | Wiki refresh | `.github/workflows/droid-wiki-refresh.yml` | Workflow-level `permissions: contents: read`; only the `wiki-publish` job gets `contents: write` and `pull-requests: write`, so the job that runs `droid exec --auto high "/wiki"` over the repository cannot push or open PRs. The PR step uses `peter-evans/create-pull-request` pinned to a commit SHA. Two weaker spots: Droid is installed with an unpinned `curl -fsSL https://app.factory.ai/cli \| sh`, and the optional `FACTORY_WIKI_PR_TOKEN` is a PAT that should stay scoped to this repository with contents and pull-requests write only. See [Tooling](how-to-contribute/tooling.md#wiki-refresh). |
+| Functional QA | `.github/workflows/qa.yml` | Workflow-level `permissions: contents: read`; only the `comment` job gets `pull-requests: write`, and it never sees `FACTORY_API_KEY` or the per-run demo password. The `qa` job runs `droid exec --auto high` only for non-draft PRs from this repository (forks and `dependabot[bot]` are skipped), so the skill files that steer the agent come from trusted branches. The per-run demo password is random (`openssl rand -hex 16`), masked in logs, and replaced with `***` in every result file before the artifact upload. Droid is installed with the same unpinned `curl \| sh` as the wiki refresh, and `QA_EVIDENCE_TOKEN` is a classic `repo`-scope PAT exposed to the agent step, so leave it unset while `video_evidence` is off. See [Functional QA](how-to-contribute/functional-qa.md#the-qa-workflow). |
 
 ### Reporting vulnerabilities
 

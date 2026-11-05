@@ -28,6 +28,7 @@ The repository is a solo-maintained demo project (owner `ajpahl1008` in `.github
 | Observability | Micrometer, OpenTelemetry (OTLP), JDK Flight Recorder | `src/main/java/com/mockingbirdbank/observability/` |
 | Build | Gradle wrapper with Spotless, Checkstyle, PMD, CPD, JaCoCo | `build.gradle`, `config/` |
 | Browser QA | Playwright (separate npm project) | `qa/` |
+| Functional QA | Droid `qa` skill with the `droid-control` plugin | `.factory/skills/qa/`, `.github/workflows/qa.yml` |
 | Deployment | Docker, GitHub Actions, Harness-templated k8s, local k3d | `Dockerfile`, `.github/workflows/`, `k8s/` |
 
 ## Quick links

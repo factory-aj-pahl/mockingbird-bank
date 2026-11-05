@@ -104,9 +104,17 @@ The two summary files are computed by regex over each tool's XML report rather t
 | `.devcontainer/Dockerfile` | `mcr.microsoft.com/devcontainers/java:1-21-bookworm`, with the broken Yarn apt source removed |
 | `.devcontainer/docker-compose.yml` | The `app` service: mounts the repo at `/workspace`, publishes 8080, waits for a healthy `postgres`, points the datasource at `postgres:5432`, and sets `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` so Testcontainers can reach sibling containers |
 
-### Agent skill
+### Agent skills
 
-`.factory/skills/run-mockingbird-bank-locally/SKILL.md` is a Factory Droid skill that walks an agent through starting Postgres (compose or dev container), `build` and `bootRun`, signing in as `jordan.ellis`, running the interactive QA script and the individual lint tasks. It describes the QA run as login, dashboard, detail, sign-out and wrong password; the spec also covers the reveal toggles and the version label.
+Three Factory Droid skills live under `.factory/skills/`:
+
+| Skill | What it does |
+| --- | --- |
+| `.factory/skills/run-mockingbird-bank-locally/SKILL.md` | Walks an agent through starting Postgres (compose or dev container), `build` and `bootRun`, signing in as `jordan.ellis`, running the interactive QA script and the individual lint tasks. It describes the QA run as login, dashboard, detail, sign-out and wrong password; the spec also covers the reveal toggles and the version label |
+| `.factory/skills/qa/SKILL.md` | The `/qa` orchestrator: diff-driven functional QA against k3d, a local server or the CI runner, configured by `.factory/skills/qa/config.yaml` |
+| `.factory/skills/qa-web/SKILL.md` | The web app's flow menu (W1 to W14), path-to-flow map, seed data and known failure modes, plus SQL to seed and remove a second holder |
+
+`.factory/settings.json` enables the `droid-control@factory-plugins` plugin for the project, which the QA skills use to drive the browser. See [Functional QA](functional-qa.md).
 
 ## GitHub workflows
 
@@ -123,6 +131,7 @@ The two summary files are computed by regex over each tool's XML report rather t
 | `.github/workflows/stale.yml` | Daily 06:00 UTC, manual | Mark issues and PRs stale after 60 days, close 14 days later; drafts and `priority: high`, `pinned`, `security` exempt |
 | `.github/workflows/droid-review.yml` | PR opened, ready for review, reopened | Factory Droid automatic code and security review on non-draft PRs |
 | `.github/workflows/droid.yml` | Comments, reviews, issues and PRs mentioning `@droid` | Ad hoc Droid run |
+| `.github/workflows/qa.yml` | PR to `master` (opened, synchronize, reopened, ready for review), manual smoke run | Build the branch as a production jar, boot it against a Postgres service, run the Droid `qa` skill and keep one sticky "QA Report" comment on the PR. Informational; skipped for drafts, forks and Dependabot. See [Functional QA](functional-qa.md#the-qa-workflow) |
 | `.github/workflows/droid-wiki-refresh.yml` | Push to `master` that changes something outside `droid-wiki/`, one run at a time | Regenerate this wiki with `droid exec "/wiki"`, push the pages to the `factory/droid-wiki` branch and open or update one "docs: refresh wiki" PR. See [Wiki refresh](#wiki-refresh) |
 
 ### Wiki refresh
@@ -168,4 +177,4 @@ The token matters for the publish step. The first runs on `master` generated the
 
 Every update also gets the `dependencies` label. Gradle updates to JUnit, Mockito, Spotless, CPD and test-retry are grouped into one `test-and-quality-tooling` PR.
 
-Related: [Development workflow](development-workflow.md), [Patterns and conventions](patterns-and-conventions.md), [Dependencies](../reference/dependencies.md).
+Related: [Development workflow](development-workflow.md), [Functional QA](functional-qa.md), [Patterns and conventions](patterns-and-conventions.md), [Dependencies](../reference/dependencies.md).

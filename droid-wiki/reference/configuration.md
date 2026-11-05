@@ -216,9 +216,12 @@ Repository secrets referenced by `.github/workflows/`. `GITHUB_TOKEN` is provide
 
 | Secret | Used by | Effect when missing |
 | --- | --- | --- |
-| `FACTORY_API_KEY` | `.github/workflows/droid-review.yml`, `.github/workflows/droid.yml`, `.github/workflows/droid-wiki-refresh.yml` | Droid review, `@droid` mentions and the wiki refresh cannot run |
+| `FACTORY_API_KEY` | `.github/workflows/droid-review.yml`, `.github/workflows/droid.yml`, `.github/workflows/droid-wiki-refresh.yml`, `.github/workflows/qa.yml` | Droid review, `@droid` mentions and the wiki refresh cannot run. The QA workflow skips the agent and posts a BLOCKED report |
+| `QA_EVIDENCE_TOKEN` | Run QA step in `.github/workflows/qa.yml` | Optional classic PAT with `repo` scope, used only to upload video evidence when `video_evidence: true` in `.factory/skills/qa/config.yaml`. Video is off, so nothing uses it today |
 | `FACTORY_WIKI_PR_TOKEN` | `wiki-publish` job in `.github/workflows/droid-wiki-refresh.yml` | Optional fine-grained PAT (contents and pull-requests write, this repository only). Without it the job falls back to `GITHUB_TOKEN`, and required checks do not run on the wiki PR |
 | `SLACK_ALERTS_WEBHOOK_URL` | `notify-on-failure` job in `.github/workflows/ci.yml`; last step of `deployment-smoke-test` in `.github/workflows/publish-image.yml` | The step logs a skip message and exits 0 |
-| `GITHUB_TOKEN` | GHCR login and pushes, GitHub Deployments API, release-drafter, gitleaks, the wiki PR when `FACTORY_WIKI_PR_TOKEN` is unset | Always present |
+| `GITHUB_TOKEN` | GHCR login and pushes, GitHub Deployments API, release-drafter, gitleaks, the wiki PR when `FACTORY_WIKI_PR_TOKEN` is unset, the QA Report comment | Always present |
+
+The QA workflow also sets its own non-secret variables for the agent: `QA_TARGET=ci`, `QA_BASE_URL` (from `environments.ci.url`), `QA_DIFF_BASE`, `QA_DB_HOST`/`QA_DB_PORT`/`QA_DB_NAME`/`QA_DB_USER`/`QA_DB_PASSWORD` for the service Postgres, `QA_APP_JAR`/`QA_APP_PID_FILE`/`QA_APP_LOG` for restarts, `RUN_ID`, and a random `MOCKINGBIRD_DEV_PASSWORD`. See [Functional QA](../how-to-contribute/functional-qa.md#the-qa-workflow).
 
 See [Alerting](../how-to-monitor/alerting.md) for the Slack messages.
