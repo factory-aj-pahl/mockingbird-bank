@@ -1,0 +1,133 @@
+# Single source of truth for the Mockingbird Bank QA skills (qa + qa-web) and
+# .github/workflows/qa.yml. Never put real credentials here - only references
+# to where they come from.
+project: Mockingbird Bank
+platform: github
+imagemagick: true
+video_evidence: false # record interactive flows through droid-control
+droid_control:
+  plugin: droid-control@factory-plugins
+  compose: false # runtime toggle for optional edited MP4 output (only used when video_evidence is true)
+
+environments:
+  k3d:
+    url: http://mockingbird.localhost:81
+    description: >-
+      Local k3d cluster (kube context k3d-dev-k8s, namespace mockingbird-bank-dev) running
+      the working tree, deployed by ./scripts/k3d-deploy.sh. The script prints the real URL;
+      prefer it over this default if the loadbalancer port differs.
+    deploy_command: ./scripts/k3d-deploy.sh
+    kube_context: k3d-dev-k8s
+    namespace: mockingbird-bank-dev
+    db_access: >-
+      kubectl --context k3d-dev-k8s -n mockingbird-bank-dev exec -i statefulset/postgres --
+      sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+    restrictions:
+      - Postgres data lives on a PVC that survives redeploys - always run the qa-web cleanup SQL after seeding.
+      - Never run ./scripts/k3d-deploy.sh down --purge-db without the user asking for it.
+  ci:
+    url: http://localhost:8080
+    description: >-
+      GitHub Actions runner (the workflow exports this url as QA_BASE_URL). .github/workflows/qa.yml builds the PR branch as a production jar
+      and starts it against a throwaway Postgres service container before invoking QA.
+    db_access: >-
+      PGPASSWORD="$QA_DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h "$QA_DB_HOST" -p "$QA_DB_PORT"
+      -U "$QA_DB_USER" -d "$QA_DB_NAME"
+    restrictions: []
+  local:
+    url: http://localhost:8080
+    description: >-
+      Fallback when the k3d cluster is not available: ./scripts/dev-up.sh starts the
+      docker-compose Postgres (localhost:5432, named volume) and ./gradlew bootRun in dev mode.
+    start_command: ./scripts/dev-up.sh
+    db_access: >-
+      docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+    restrictions:
+      - The compose volume persists between runs - always run the qa-web cleanup SQL after seeding.
+  lab:
+    url: '' # Harness/MetalLB deploy; no URL is checked in. Ask the user for it.
+    description: Shared LAB deployment (external Postgres). Runs master, not a PR branch.
+    restrictions:
+      - Never use for PR/branch QA - it runs different code than the branch.
+      - Read-only smoke checks only, and only when the user explicitly asks for lab.
+      - Never seed or delete data, never restart pods, never change feature flags.
+
+default_target: k3d # local /qa runs; CI always uses the ci target (QA_TARGET=ci)
+
+auth:
+  method: email-password # username + password form login
+  provider: custom # Spring Security form login behind Vaadin LoginOverlay at /login
+  login_path: /login
+  failure_redirect: /login?error
+  notes: >-
+    No sign-up, no roles. DataInitializer seeds exactly one holder + login on an empty
+    database. Sessions are server-side (Vaadin), so any app restart signs everyone out.
+
+personas:
+  - name: holder
+    description: 'The seeded demo account holder (Jordan Ellis) with three accounts.'
+    username: jordan.ellis
+    email: jordan.ellis@example.com
+    credentials_source: env-var
+    secret_name: MOCKINGBIRD_DEV_PASSWORD
+    credentials_notes: >-
+      The password the app saw in MOCKINGBIRD_DEV_PASSWORD when it seeded its database. ci:
+      $MOCKINGBIRD_DEV_PASSWORD (the workflow generates one per run for the app and QA). k3d:
+      always the AGENTS.md "Demo login" default (the pod never receives the variable). local:
+      the default unless dev-up.sh was started with the variable set. See qa-web Authentication.
+    test_focus: [sign-in, dashboard, account detail, account number reveal, build version, dark mode, sign-out]
+    cannot_do:
+      - view another holder's accounts or transactions
+      - reveal another holder's account numbers
+  - name: anonymous
+    description: 'Signed-out visitor.'
+    credentials_source: none
+    test_focus: [login redirect, wrong-password rejection, public actuator endpoints]
+    cannot_do:
+      - see the dashboard or any /accounts route
+      - read /actuator/featureflags or /actuator/profiling
+  - name: other_holder
+    description: 'A second account holder seeded by QA via SQL (no login) to probe cross-account access.'
+    email: qa.other.holder@example.invalid
+    credentials_source: none
+    seed_sql: .factory/skills/qa-web/sql/seed-other-holder.sql
+    cleanup_sql: .factory/skills/qa-web/sql/cleanup-other-holder.sql
+    test_focus: [cross-account isolation as seen by holder]
+    cannot_do: []
+
+apps:
+  web:
+    description: Spring Boot 4 + Vaadin 25 app (UI and Actuator endpoints in one process).
+    path_patterns:
+      - 'src/main/java/**'
+      - 'src/main/resources/**'
+      - 'src/main/frontend/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle.properties'
+      - 'gradle/**'
+    skill: qa-web
+    test_tool: agent-browser # browser flows; Actuator checks use curl
+    build_command: './gradlew -Pvaadin.productionMode=true clean bootJar -x test --console=plain' # run by .github/workflows/qa.yml
+
+feature_flags:
+  provider: custom # FeatureFlagsProperties bound from mockingbird.feature-flags.* in application.yml
+  dashboard_url: /actuator/featureflags # read-only, needs a signed-in session
+  defaults_source: src/main/resources/application.yml # mockingbird.feature-flags.*
+  how_to_override: >-
+    Set MOCKINGBIRD_FEATURE_FLAGS_<NAME> (e.g. MOCKINGBIRD_FEATURE_FLAGS_SHOW_WELCOME_BANNER=true)
+    in the app's environment and restart it. Values are read at startup only. See qa-web
+    "Feature flag variants" for the per-target restart and restore steps.
+
+integrations: {} # no payment, email, SMS or other third-party services
+
+cleanup:
+  auto_cleanup: true
+  strategy: none
+  instructions: >-
+    The app is read-only. CI uses a throwaway Postgres service. The only data QA creates is
+    the other_holder persona: run its cleanup_sql after the cross-account flow on every
+    target (k3d and local keep their data between runs). Restore any feature-flag override
+    and the light theme before finishing.
+
+failure_learning: suggest_in_report

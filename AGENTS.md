@@ -221,6 +221,21 @@ confirm a wrong password is rejected. Tears down everything it started
 First run needs `cd qa && npm install && npx playwright install chromium`
 (one-time; downloads the Chromium binary Playwright drives).
 
+### Droid functional QA (qa skill)
+
+`.factory/skills/qa/` is a Droid skill that does diff-driven functional QA: it
+reads the git diff, picks the relevant flows from `.factory/skills/qa-web/SKILL.md`
+(sign-in, dashboard, account detail, account-number reveal, cross-account
+isolation, Actuator access, feature-flag variants, ...), drives the app in a
+real browser through the `droid-control` plugin (enabled for the project in
+`.factory/settings.json`), and writes a report to qa-results/report.md. Run it
+with `/qa` in Droid. Locally it targets the k3d deploy by default (redeploying
+via `./scripts/k3d-deploy.sh` when the running build doesn't match the working
+tree) and falls back to `./scripts/dev-up.sh`. Targets, personas and the
+video/Compose toggles live in `.factory/skills/qa/config.yaml`. The
+cross-account flow seeds a second, login-less holder with SQL and always
+removes it again. It is functional QA only and never replaces `./gradlew build`.
+
 ## Feature flags
 
 `FeatureFlagsProperties` (`src/main/java/com/mockingbirdbank/config/`) binds boolean flags from
@@ -412,6 +427,17 @@ step needed.
   Needs `FACTORY_API_KEY`, plus a `FACTORY_WIKI_PR_TOKEN` fine-grained PAT
   (contents + pull-requests write, this repo only) so required checks run on
   the wiki PR; without it the job falls back to `GITHUB_TOKEN`.
+- **Functional QA**: `.github/workflows/qa.yml` runs the Droid qa skill (see
+  [Droid functional QA](#droid-functional-qa-qa-skill)) on every non-draft,
+  same-repo PR that touches app code (paths from `apps.web.path_patterns` in
+  `.factory/skills/qa/config.yaml`), or by manual dispatch as a smoke run. It
+  builds the branch as a production jar, boots it against a throwaway Postgres
+  service with a random per-run demo password, and keeps one sticky
+  "QA Report" comment updated per PR. The job that runs the agent is read-only;
+  a separate job posts the comment from the uploaded artifact. The check is
+  informational, not required. Needs `FACTORY_API_KEY`; `QA_EVIDENCE_TOKEN` (a
+  classic PAT with `repo` scope) is only used if `video_evidence` is turned on
+  in that config.
 - **Branch protection** on `master` requires the CI status check to pass,
   blocks force-pushes and branch deletion, and requires conversation
   resolution; repo admins can still bypass it for direct pushes when needed.

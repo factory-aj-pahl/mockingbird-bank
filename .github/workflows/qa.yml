@@ -1,0 +1,367 @@
+name: QA
+
+# Informational only: this check runs Droid's functional QA (qa skill, see
+# .factory/skills/qa/) against the PR branch and posts one sticky report
+# comment. It never fails the PR on a QA finding - do not add it to branch
+# protection unless you want it to be required.
+#
+# No preview deployments exist for this repo, so the branch is built as a
+# production jar and booted on the runner against a throwaway Postgres (the
+# "ci" target in .factory/skills/qa/config.yaml).
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      smoke:
+        description: "Run the smoke flows regardless of the diff"
+        type: boolean
+        default: true
+
+concurrency:
+  group: qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# The job that runs the agent stays read-only (same rule as
+# droid-wiki-refresh.yml); only the comment job below can write to the PR.
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    name: Functional QA (Droid)
+    # Fork PRs get neither FACTORY_API_KEY nor a writable token, and drafts
+    # aren't ready for review yet.
+    # Dependabot runs get no repository secrets, so the agent couldn't authenticate.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: mydatabase
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U admin -d mydatabase"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      # Throwaway service-container database above; same values as the app's
+      # application.yml fallbacks, so the jar needs no datasource overrides.
+      QA_DB_HOST: localhost
+      QA_DB_PORT: "5432"
+      QA_DB_NAME: mydatabase
+      QA_DB_USER: admin
+      QA_DB_PASSWORD: secret
+      # No OTLP collector on the runner.
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read QA config
+        id: cfg
+        run: |
+          f=.factory/skills/qa/config.yaml
+          {
+            echo "imagemagick=$(yq '.imagemagick // false' "$f")"
+            echo "video_evidence=$(yq '.video_evidence // false' "$f")"
+            echo "compose=$(yq '.droid_control.compose // false' "$f")"
+            echo "build_command=$(yq '.apps.web.build_command' "$f")"
+          } >> "$GITHUB_OUTPUT"
+          echo "QA_BASE_URL=$(yq '.environments.ci.url' "$f")" >> "$GITHUB_ENV"
+
+      # Path patterns come from config.yaml (apps.web.path_patterns) so the
+      # skill and this gate never disagree. In [[ == ]] matching, * also
+      # matches "/", which is what the ** globs intend.
+      - name: Decide QA scope
+        id: scope
+        env:
+          BASE_REF: ${{ github.base_ref || 'master' }}
+          SMOKE: ${{ inputs.smoke }}
+          HAS_FACTORY_KEY: ${{ secrets.FACTORY_API_KEY != '' }}
+        run: |
+          echo "has_key=$HAS_FACTORY_KEY" >> "$GITHUB_OUTPUT"
+          if [ "$SMOKE" = "true" ]; then
+            echo "app_changed=true" >> "$GITHUB_OUTPUT"
+            echo "run=$HAS_FACTORY_KEY" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          mapfile -t patterns < <(yq '.apps.web.path_patterns[]' .factory/skills/qa/config.yaml)
+          changed=false
+          while IFS= read -r f; do
+            for p in "${patterns[@]}"; do
+              # shellcheck disable=SC2053
+              if [[ "$f" == $p ]]; then changed=true; break 2; fi
+            done
+          done < <(git diff --name-only "origin/${BASE_REF}...HEAD")
+          echo "app_changed=$changed" >> "$GITHUB_OUTPUT"
+          run=false
+          if [ "$changed" = "true" ] && [ "$HAS_FACTORY_KEY" = "true" ]; then run=true; fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "App code changed: $changed; FACTORY_API_KEY available: $HAS_FACTORY_KEY"
+
+      - name: Prepare run environment
+        run: |
+          mkdir -p qa-results
+          # Fresh demo-holder password per run, shared by the app (which seeds
+          # it on the empty database) and the QA agent; masked in logs.
+          pw="$(openssl rand -hex 16)"
+          echo "::add-mask::$pw"
+          {
+            echo "MOCKINGBIRD_DEV_PASSWORD=$pw"
+            echo "QA_APP_LOG=$RUNNER_TEMP/app.log"
+            echo "QA_APP_PID_FILE=$RUNNER_TEMP/app.pid"
+            echo "RUN_ID=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          } >> "$GITHUB_ENV"
+
+      - name: Install ImageMagick
+        if: steps.scope.outputs.run == 'true' && steps.cfg.outputs.imagemagick == 'true'
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick
+
+      # agent-browser needs ffmpeg to finalize WebM recordings; Compose needs it to render.
+      - name: Install ffmpeg
+        if: steps.scope.outputs.run == 'true' && (steps.cfg.outputs.video_evidence == 'true' || steps.cfg.outputs.compose == 'true')
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Set up Node.js
+        if: steps.scope.outputs.run == 'true'
+        continue-on-error: true
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up JDK 21
+        if: steps.scope.outputs.run == 'true'
+        continue-on-error: true
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Set up Gradle
+        if: steps.scope.outputs.run == 'true'
+        continue-on-error: true
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build production jar
+        id: build
+        if: steps.scope.outputs.run == 'true'
+        continue-on-error: true
+        env:
+          BUILD_COMMAND: ${{ steps.cfg.outputs.build_command }}
+        run: bash -c "$BUILD_COMMAND"
+
+      - name: Start the app
+        id: app
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          jar=""
+          for candidate in build/libs/*.jar; do
+            case "$candidate" in *-plain.jar) ;; *) jar="$candidate"; break ;; esac
+          done
+          if [ -z "$jar" ]; then echo "No boot jar in build/libs"; exit 1; fi
+          echo "QA_APP_JAR=$GITHUB_WORKSPACE/$jar" >> "$GITHUB_ENV"
+          nohup java -jar "$jar" > "$QA_APP_LOG" 2>&1 &
+          echo $! > "$QA_APP_PID_FILE"
+          for _ in $(seq 1 90); do
+            if curl -sf "$QA_BASE_URL/actuator/health" 2>/dev/null | grep -q '"status":"UP"'; then
+              echo "App is up."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "App never became healthy:"
+          tail -n 80 "$QA_APP_LOG"
+          exit 1
+
+      - name: Install droid CLI
+        id: droid
+        if: steps.app.outcome == 'success'
+        continue-on-error: true
+        run: |
+          curl -fsSL https://app.factory.ai/cli | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.factory/bin" >> "$GITHUB_PATH"
+
+      # .factory/settings.json makes Droid auto-install droid-control@factory-plugins.
+      - name: Run QA
+        id: qa
+        if: steps.droid.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 18
+        env:
+          CI: "true"
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+          QA_TARGET: ci
+          QA_DIFF_BASE: origin/${{ github.base_ref || 'master' }}
+          QA_SMOKE: ${{ inputs.smoke || 'false' }}
+          QA_EVIDENCE_TOKEN: ${{ secrets.QA_EVIDENCE_TOKEN }}
+          REPO_ID: ${{ github.event.repository.id }}
+          VIDEO_EVIDENCE: ${{ steps.cfg.outputs.video_evidence }}
+          COMPOSE: ${{ steps.cfg.outputs.compose }}
+        run: |
+          set -o pipefail
+          prompt="You are running in a non-interactive CI environment. There is NO human available. Do NOT use AskUser, do NOT wait for confirmations, do NOT pause for input. Run the qa skill against the ci target: the app built from this branch is already running at $QA_BASE_URL. The diff base is $QA_DIFF_BASE. Use droid-control for every browser flow. Write the final report to qa-results/report.md."
+          if [ "$QA_SMOKE" = "true" ]; then
+            prompt="$prompt This is an explicit smoke run: run the Smoke set defined in the qa-web skill regardless of the diff."
+          fi
+          if [ "$VIDEO_EVIDENCE" = "true" ]; then
+            prompt="$prompt Use droid-control Capture and upload video evidence per the qa skill's Evidence Capture rules."
+            if [ "$COMPOSE" = "true" ]; then
+              prompt="$prompt Run droid-control Compose for each captured flow before upload."
+            fi
+          fi
+          droid exec --auto high "$prompt" 2>&1 | tee qa-output.txt
+
+      - name: Write report without an agent run
+        if: >-
+          always() && (steps.scope.outputs.run != 'true' || steps.build.outcome == 'failure' ||
+          steps.app.outcome == 'failure' || steps.droid.outcome == 'failure')
+        env:
+          APP_CHANGED: ${{ steps.scope.outputs.app_changed }}
+          HAS_KEY: ${{ steps.scope.outputs.has_key }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          APP_OUTCOME: ${{ steps.app.outcome }}
+        run: |
+          mkdir -p qa-results
+          {
+            echo "## QA Report"
+            echo
+            echo "| # | Test Case | App | Persona | Result | Notes |"
+            echo "| --- | --------- | --- | ------- | ------ | ----- |"
+            if [ "$APP_CHANGED" != "true" ]; then
+              echo "| 1 | Diff scope | - | - | :grey_question: INCONCLUSIVE | No app code changed -- QA not applicable for this diff. |"
+            elif [ "$HAS_KEY" != "true" ]; then
+              echo "| 1 | All web flows | web | - | :no_entry: BLOCKED | FACTORY_API_KEY is not available to this run. Add it as a repository secret. |"
+            elif [ "$BUILD_OUTCOME" = "failure" ]; then
+              echo "| 1 | All web flows | web | - | :no_entry: BLOCKED | The production jar failed to build (or JDK/Gradle setup failed). See the job log. |"
+            elif [ "$APP_OUTCOME" = "success" ]; then
+              echo "| 1 | All web flows | web | - | :no_entry: BLOCKED | Installing the droid CLI failed. See the \"Install droid CLI\" step log. |"
+            else
+              echo "| 1 | All web flows | web | - | :no_entry: BLOCKED | The app never reported healthy on the runner. App log excerpt below. |"
+              echo
+              echo "<details><summary>App log (last 80 lines)</summary>"
+              echo
+              echo '```'
+              tail -n 80 "$QA_APP_LOG" 2>/dev/null || true
+              echo '```'
+              echo
+              echo "</details>"
+            fi
+          } > qa-results/report.md
+
+      - name: Stop the app
+        if: always()
+        run: |
+          if [ -f "$QA_APP_PID_FILE" ]; then kill "$(cat "$QA_APP_PID_FILE")" 2>/dev/null || true; fi
+          if [ -f "$QA_APP_LOG" ]; then mkdir -p qa-results && cp "$QA_APP_LOG" qa-results/app.log; fi
+
+      # The comment job has no access to the per-run demo password, so scrub
+      # it here, before anything leaves this job.
+      - name: Scrub secrets from results
+        if: always()
+        run: |
+          if [ -n "${MOCKINGBIRD_DEV_PASSWORD:-}" ]; then
+            find qa-results -type f \( -name '*.md' -o -name '*.json' -o -name '*.txt' -o -name '*.log' \) \
+              -exec sed -i "s/${MOCKINGBIRD_DEV_PASSWORD}/***/g" {} + 2>/dev/null || true
+            if [ -f qa-output.txt ]; then sed -i "s/${MOCKINGBIRD_DEV_PASSWORD}/***/g" qa-output.txt; fi
+          fi
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-results
+          path: |
+            qa-results/
+            qa-output.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  comment:
+    name: Post QA report
+    needs: qa
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && (needs.qa.result == 'success' || needs.qa.result == 'failure') }}
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download QA artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: qa-results
+
+      - name: Post or update the QA report comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          marker='<!-- qa-report -->'
+          {
+            if [ -s qa-results/report.md ]; then
+              if ! head -n 1 qa-results/report.md | grep -q '^## QA Report'; then
+                echo "## QA Report"
+                echo
+              fi
+              cat qa-results/report.md
+            else
+              echo "## QA Report"
+              echo
+              echo ":no_entry: The QA run produced no report."
+              echo
+              echo "<details><summary>QA output (last 200 lines)</summary>"
+              echo
+              echo '```'
+              tail -n 200 qa-output.txt 2>/dev/null || echo "(no output captured)"
+              echo '```'
+              echo
+              echo "</details>"
+            fi
+          } > body.md
+          # GitHub caps comment bodies at 65536 characters. Cut the report body
+          # only, then close any code fence or <details> left open by the cut.
+          if [ "$(wc -c < body.md)" -gt 60000 ]; then
+            head -c 60000 body.md > body.trunc
+            fences="$(grep -c '^ *```' body.trunc || true)"
+            if [ $((fences % 2)) -eq 1 ]; then printf '\n```\n' >> body.trunc; fi
+            opened="$(grep -o '<details' body.trunc | wc -l)"
+            closed="$(grep -o '</details>' body.trunc | wc -l)"
+            for _ in $(seq 1 $((opened - closed))); do printf '\n</details>\n' >> body.trunc; done
+            printf '\n_(truncated - see the qa-results artifact for the full report)_\n' >> body.trunc
+            mv body.trunc body.md
+          fi
+          {
+            echo "$marker"
+            cat body.md
+            echo
+            echo "---"
+            echo "Informational check. Screenshots, logs and raw evidence: the \`qa-results\` artifact of [this workflow run]($RUN_URL)."
+          } > comment.md
+          existing="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq ".[] | select(.body | startswith(\"${marker}\")) | .id" | head -n 1)"
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -F body=@comment.md > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -F body=@comment.md > /dev/null
+          fi

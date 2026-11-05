@@ -1,0 +1,21 @@
+# install-qa questionnaire progress (resume support)
+platform: github
+category_1_target:
+  default_target: k3d
+  ci_target: ci  # PR branch booted on the runner; k3d is not reachable from GitHub runners
+  restrictions: []
+category_2_personas:
+  - holder (jordan.ellis, seeded by DataInitializer, password from MOCKINGBIRD_DEV_PASSWORD or AGENTS.md default)
+  - anonymous
+  - other_holder (seeded via SQL by QA, no login; used for cross-account negative tests)
+category_3_flows: accepted_as_listed
+category_4_integrations: not_applicable
+category_5_cleanup: not_applicable  # plus idempotent removal of the QA-seeded other_holder rows (k3d PVC persists)
+category_6_imagemagick: true
+category_7_ci:
+  github_actions_workflow: true
+  required: false  # informational only
+  wait_for_preview: not_applicable  # no preview deployments
+  video_evidence: false
+  droid_control_compose: false  # forced: no video to edit
+category_8_failure_learning: suggest_in_report
