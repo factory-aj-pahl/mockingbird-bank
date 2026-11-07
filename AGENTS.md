@@ -413,7 +413,8 @@ step needed.
   every path.
 - **Automated PR review**: `.github/workflows/droid-review.yml` runs Factory
   Droid's automated code review (including a security-focused pass) on every
-  non-draft PR; `.github/workflows/droid.yml` lets `@droid` be mentioned in
+  non-draft PR, and again on every push to it; `.github/workflows/droid.yml`
+  lets `@droid` be mentioned in
   an issue/PR comment to invoke it ad hoc. Both need a `FACTORY_API_KEY`
   repository secret and the Factory Droid GitHub App installed to actually
   run.
@@ -435,12 +436,16 @@ step needed.
   service with a random per-run demo password, and keeps one sticky
   "QA Report" comment updated per PR. The job that runs the agent is read-only;
   a separate job posts the comment from the uploaded artifact. The check is
-  informational, not required. Needs `FACTORY_API_KEY`; `QA_EVIDENCE_TOKEN` (a
+  required on `master`, but its job succeeds even when QA reports failures,
+  so read the report rather than the check status. Needs `FACTORY_API_KEY`; `QA_EVIDENCE_TOKEN` (a
   classic PAT with `repo` scope) is only used if `video_evidence` is turned on
   in that config.
-- **Branch protection** on `master` requires the CI status check to pass,
-  blocks force-pushes and branch deletion, and requires conversation
-  resolution; repo admins can still bypass it for direct pushes when needed.
+- **Branch protection**: the `Protect Master` ruleset on `master` requires a
+  pull request and five status checks (`Build and test`, `Fast checks (lint,
+  static analysis)`, `Analyze (java-kotlin)`, `droid-review`, `Functional QA
+  (Droid)`) on a branch that is up to date with `master`, and blocks
+  force-pushes and branch deletion. It has no bypass actors and requires
+  neither approvals nor conversation resolution.
 - **Log scrubbing**: `logback-spring.xml` routes every log message through
   `ScrubbingMessageConverter`
   (`src/main/java/com/mockingbirdbank/config/logging/`), which redacts
