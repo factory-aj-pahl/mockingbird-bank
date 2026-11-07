@@ -601,5 +601,6 @@ comment on that test for details before "fixing" it.
 
 ## Pull requests
 
-- After opening a PR into `master`, enable auto-merge: `gh pr merge <PR number> --auto --squash`.
+- After opening a non-feature PR into `master`, enable auto-merge: `gh pr merge <PR number> --auto --squash`.
+- For feature PRs governed by the Linear tracker, enable auto-merge only after a newly applied `approved` label authorizes the version-only bump and that bump has been pushed to the PR.
 - Never merge directly or bypass required checks.
