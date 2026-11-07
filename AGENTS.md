@@ -244,8 +244,9 @@ Override one per-environment with a `MOCKINGBIRD_FEATURE_FLAGS_<NAME>` env var (
 binding maps it automatically) - no code change or redeploy needed, just a different value for
 that variable (e.g. in a k8s manifest or `docker run -e`). `FeatureFlagService` is the typed,
 call-site-facing API (`showAccountNumberOnDashboard()`, `showWelcomeBanner()`,
-`allowAccountNumberReveal()`, `showBuildVersion()`); `DashboardView`, `AccountCard`,
-`AccountDetailView`, and `MainLayout` use it to gate small, genuinely optional pieces of UI.
+`allowAccountNumberReveal()`, `showBuildVersion()`, `showAccountCount()`); `DashboardView`,
+`AccountCard`, `AccountDetailView`, and `MainLayout` use it to gate small, genuinely optional
+pieces of UI.
 `showBuildVersion` (the running version in the top bar - see [Build version](#build-version))
 deliberately defaults to **on**, an exception to the "default matches today's behavior" rule; turn
 it off per environment with `MOCKINGBIRD_FEATURE_FLAGS_SHOW_BUILD_VERSION=false`.

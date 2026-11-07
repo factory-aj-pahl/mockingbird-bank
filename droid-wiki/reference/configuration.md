@@ -69,6 +69,7 @@ Bound by `src/main/java/com/mockingbirdbank/config/FeatureFlagsProperties.java` 
 | `mockingbird.feature-flags.show-welcome-banner` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_WELCOME_BANNER` | `false` | Dashboard shows a welcome banner |
 | `mockingbird.feature-flags.allow-account-number-reveal` | `MOCKINGBIRD_FEATURE_FLAGS_ALLOW_ACCOUNT_NUMBER_REVEAL` | `true` | Eye buttons and the "Show account numbers" toggle |
 | `mockingbird.feature-flags.show-build-version` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_BUILD_VERSION` | `true` | Version label in the top bar |
+| `mockingbird.feature-flags.show-account-count` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_COUNT` | `false` | Dashboard shows "You have N accounts" under "Your accounts" |
 
 Each word needs its own underscore in the env var name. Current values are readable at `/actuator/featureflags` after sign-in. Details are in [Feature flags](../features/feature-flags.md).
 

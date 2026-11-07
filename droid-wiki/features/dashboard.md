@@ -12,11 +12,11 @@ Give the signed-in holder a one-screen summary of every account they own and a l
 
 | Class | File | Role |
 | --- | --- | --- |
-| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | The route. Builds the welcome banner, reveal-all toolbar, balance hero and accounts grid in its constructor. |
+| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | The route. Builds the welcome banner, reveal-all toolbar, balance hero, account count line and accounts grid in its constructor. |
 | `AccountCard` | `src/main/java/com/mockingbirdbank/ui/view/AccountCard.java` | One account tile. Extends `Anchor`, so the whole card links to `accounts/{id}`. |
 | `AccountNumberDisplay` | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number with an eye button. See [Account number reveal](account-number-reveal.md). |
 | `AccountService` | `src/main/java/com/mockingbirdbank/service/AccountService.java` | `currentHolder()`, `accountsFor(holder)`, `totalBalance(holder)`, `revealAccountNumbers()`. |
-| `FeatureFlagService` | `src/main/java/com/mockingbirdbank/config/FeatureFlagService.java` | Gates the banner, the number line on cards, and the eye buttons. |
+| `FeatureFlagService` | `src/main/java/com/mockingbirdbank/config/FeatureFlagService.java` | Gates the banner, the account count line, the number line on cards, and the eye buttons. |
 | `MainLayout` | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | Top bar around the view (greeting, dark mode, Sign out). |
 
 ## How it works
@@ -37,7 +37,7 @@ sequenceDiagram
     V->>E: track dashboard.viewed accountCount
     V->>F: showWelcomeBanner()
     V->>V: balanceHero, then accountsSection
-    V->>F: showAccountNumberOnDashboard(), allowAccountNumberReveal()
+    V->>F: showAccountCount(), showAccountNumberOnDashboard(), allowAccountNumberReveal()
     V->>V: add reveal-all toolbar if any AccountNumberDisplay exists
 ```
 
@@ -46,7 +46,7 @@ The page is assembled top to bottom as:
 1. **Welcome banner** (only when `showWelcomeBanner` is on, default off). A navy strip reading "Hi <first name> - you're viewing an early preview of the redesigned dashboard." The first name is `holder.getFullName().split(" ")[0]`.
 2. **Reveal-all toolbar** (only when at least one `AccountNumberDisplay` was created). A right-aligned tertiary button labelled "Show account numbers" or "Hide account numbers". The hero and accounts section are built before this check so the view knows whether the toolbar has anything to control.
 3. **Balance hero.** Left side: "Total assets" eyebrow, the sum from `totalBalance` formatted with `NumberFormat.getCurrencyInstance(Locale.US)`, and "Across N accounts". Right side: "Account holder" with the full name and, if the holder has any accounts, a "Primary account" number line for `accounts.get(0)`.
-4. **Your accounts.** A wrapping `FlexLayout` of `AccountCard`s.
+4. **Your accounts.** The "Your accounts" heading, then (only when `showAccountCount` is on, default off) a muted line reading "You have N accounts", or "You have 1 account" when the holder has one account, then a wrapping `FlexLayout` of `AccountCard`s. N is `accounts.size()` of the list the constructor already loaded, so the line costs no extra query. The text comes from the package-private `DashboardView.accountCountSummary(int)`, and the line's `Span` has the CSS class `account-count-summary`.
 
 ### Primary account
 
@@ -77,7 +77,7 @@ The primary account line and the checking card are two separate displays for the
 
 - **Analytics:** one `dashboard.viewed` event per view construction, with attribute `accountCount`. See [Analytics](../systems/analytics.md).
 - **Resilience:** every `AccountService` repository call runs inside the `accounts` circuit breaker. An open breaker during construction surfaces as an unhandled `ServiceUnavailableException`, which `GlobalErrorHandler` tracks. See [Resilience](../systems/resilience.md).
-- **Flags:** `showWelcomeBanner`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal`. See [Feature flags](feature-flags.md).
+- **Flags:** `showWelcomeBanner`, `showAccountCount`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal`. See [Feature flags](feature-flags.md).
 - **Theme:** colors come from `--mb-*` CSS variables in `src/main/frontend/themes/mockingbird/styles.css`, so dark mode applies without code in the view. See [UI](../systems/ui.md).
 
 ## Entry points for modification
@@ -88,7 +88,7 @@ The primary account line and the checking card are two separate displays for the
 
 ## Testing
 
-`qa/tests/dashboard.spec.ts` asserts the greeting, "Total assets", "Your accounts" and all three seeded account names after sign-in, then clicks into Everyday Checking. The eye-toggle test checks that the per-card eye reveals without navigating and that "Show all account numbers" / "Hide all account numbers" reveal and re-mask every number. There is no Java unit test for `DashboardView`.
+`qa/tests/dashboard.spec.ts` asserts the greeting, "Total assets", "Your accounts" and all three seeded account names after sign-in, then clicks into Everyday Checking. The eye-toggle test checks that the per-card eye reveals without navigating and that "Show all account numbers" / "Hide all account numbers" reveal and re-mask every number. `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` builds the view with a mocked `AccountService` and checks the `showAccountCount` line: the singular and plural text, a count that needs no `AccountService` calls beyond the constructor's usual `currentHolder`, `accountsFor` and `totalBalance`, and no line at all when the flag is off. The rest of the view has no Java unit test.
 
 ## Key source files
 
@@ -99,4 +99,5 @@ The primary account line and the checking card are two separate displays for the
 | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number with eye button |
 | `src/main/java/com/mockingbirdbank/service/AccountService.java` | Holder, accounts, total, bulk reveal |
 | `src/main/java/com/mockingbirdbank/repository/AccountRepository.java` | `findByHolderIdOrderByAccountTypeAscIdAsc` |
+| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Unit test for the account count line |
 | `qa/tests/dashboard.spec.ts` | Browser test |

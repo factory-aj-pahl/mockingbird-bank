@@ -96,7 +96,7 @@ Only the account number reveal path catches it.
 | Where | What it catches | User sees |
 | --- | --- | --- |
 | `AccountNumberDisplay.onToggle`, `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java:124-134` | `AccessDeniedException` or `ServiceUnavailableException` from `revealAccountNumber` | `showRevealFailed()`: a 4-second notification at top center, "We couldn't show the full account number right now. Please try again." The number stays masked. |
-| `DashboardView.toggleAll`, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:201-220` | `ServiceUnavailableException` from `revealAccountNumbers` | The same notification; no display is changed. |
+| `DashboardView.toggleAll`, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:217-236` | `ServiceUnavailableException` from `revealAccountNumbers` | The same notification; no display is changed. |
 
 Everywhere else the exception propagates. `DashboardView` calls `currentHolder`, `accountsFor` and `totalBalance` in its constructor, and `AccountDetailView.setParameter` catches only `IllegalArgumentException` around `requireAccount` and nothing around `transactionService.forAccount`. With a breaker open, those pages fail through Vaadin's navigation error handling rather than a friendly message. The [dashboard](../features/dashboard.md) and [account detail](../features/account-detail.md) pages describe those views.
 

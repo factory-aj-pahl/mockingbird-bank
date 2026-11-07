@@ -7,10 +7,10 @@ Mockingbird Bank has a small set of user-visible features, all read-only. A hold
 | Feature | Summary | Main code |
 | --- | --- | --- |
 | [Sign-in](sign-in.md) | Vaadin `LoginOverlay` in front of Spring Security form login, BCrypt passwords, `user.login` analytics events, sign-out from the top bar. | `src/main/java/com/mockingbirdbank/ui/view/LoginView.java`, `src/main/java/com/mockingbirdbank/security/SecurityConfig.java` |
-| [Dashboard](dashboard.md) | Landing page at `/` and `/accounts`: total assets, primary account line, one card per account, optional welcome banner, and a "Show account numbers" toolbar. | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` |
+| [Dashboard](dashboard.md) | Landing page at `/` and `/accounts`: total assets, primary account line, one card per account, optional welcome banner and account count line, and a "Show account numbers" toolbar. | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` |
 | [Account detail](account-detail.md) | `/accounts/{id}`: account header, current balance, and a transaction grid sorted newest first. | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` |
 | [Account number reveal](account-number-reveal.md) | Eye button that fetches one full account number after an ownership check, re-masks after 30 seconds, plus a reveal-all toggle on the dashboard. | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` |
-| [Feature flags](feature-flags.md) | Four boolean flags under `mockingbird.feature-flags.*`, overridable per environment by env var and visible at `/actuator/featureflags`. | `src/main/java/com/mockingbirdbank/config/FeatureFlagService.java` |
+| [Feature flags](feature-flags.md) | Five boolean flags under `mockingbird.feature-flags.*`, overridable per environment by env var and visible at `/actuator/featureflags`. | `src/main/java/com/mockingbirdbank/config/FeatureFlagService.java` |
 | [Build version](build-version.md) | The running version and commit, shown under the wordmark, in `/actuator/info`, and in a startup log line. | `src/main/java/com/mockingbirdbank/observability/BuildVersion.java` |
 
 The shared top bar (`src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java`) appears on every signed-in screen. It holds the wordmark, the build version label, the "Welcome back" greeting, the dark mode toggle and the Sign out button. The layout itself is covered in [UI](../systems/ui.md).
@@ -39,7 +39,7 @@ graph LR
 | Feature | [Services](../systems/services.md) | [Analytics](../systems/analytics.md) | [Resilience](../systems/resilience.md) | Flags | [Security](../security.md) |
 | --- | --- | --- | --- | --- | --- |
 | Sign-in | `AccountService.currentHolder` (top bar greeting) | `user.login` | no | no | form login, BCrypt |
-| Dashboard | `AccountService` | `dashboard.viewed` | `accounts` breaker | `showWelcomeBanner`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal` | `@PermitAll` route |
+| Dashboard | `AccountService` | `dashboard.viewed` | `accounts` breaker | `showWelcomeBanner`, `showAccountCount`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal` | `@PermitAll` route |
 | Account detail | `AccountService`, `TransactionService` | `account.viewed` | `accounts`, `transactions` breakers | `allowAccountNumberReveal` | `@PermitAll` route, no ownership check |
 | Account number reveal | `AccountService.revealAccountNumber(s)` | `account_number.revealed` | `accounts` breaker | `allowAccountNumberReveal` | ownership check |
 | Build version | none | no | no | `showBuildVersion` | `/actuator/info` is public |
@@ -50,4 +50,4 @@ graph LR
 - Service logic: `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` and `src/test/java/com/mockingbirdbank/service/TransactionServiceTest.java`.
 - Login over HTTP: `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java`.
 
-The Vaadin views themselves have no unit tests. JaCoCo tracks but does not gate coverage on `com.mockingbirdbank.ui.*` (see [Testing](../how-to-contribute/testing.md)).
+Among the Vaadin views, only `DashboardView` has a unit test (`src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java`, for the account count line). JaCoCo tracks but does not gate coverage on `com.mockingbirdbank.ui.*` (see [Testing](../how-to-contribute/testing.md)).

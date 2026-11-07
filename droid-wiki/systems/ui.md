@@ -35,7 +35,7 @@ src/main/frontend/themes/mockingbird/
 | `MainLayout` | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | `AppLayout` with the navy top bar: logo, wordmark, optional build version, greeting, dark mode toggle, sign out. |
 | `BirdMark` | `src/main/java/com/mockingbirdbank/ui/layout/BirdMark.java` | An `Html` component holding a 30x30 inline SVG bird, so the logo needs no image asset and stays sharp at any size. |
 | `LoginView` | `src/main/java/com/mockingbirdbank/ui/view/LoginView.java` | `LoginOverlay` posting to `login`; shows the error state when the URL has an `error` query parameter. |
-| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Total assets hero, account cards, optional welcome banner, "Show/Hide account numbers" toolbar. |
+| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Total assets hero, account cards, optional welcome banner and account count line, "Show/Hide account numbers" toolbar. |
 | `AccountDetailView` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Header and a `Grid` of transactions for one account. |
 | `AccountCard` | `src/main/java/com/mockingbirdbank/ui/view/AccountCard.java` | An `Anchor` to `accounts/{id}` wrapping name, type tag, number line and balance. |
 | `AccountNumberDisplay` | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number plus eye button; see [Account number reveal](../features/account-number-reveal.md). |
@@ -81,6 +81,7 @@ Each view reads feature flags through `FeatureFlagService`:
 | --- | --- | --- |
 | `showBuildVersion()` | `MainLayout` | Adds a `#build-version` span under the wordmark, with commit details in its tooltip. |
 | `showWelcomeBanner()` | `DashboardView` | Adds a navy "early preview" banner above the hero. |
+| `showAccountCount()` | `DashboardView` | Adds a muted "You have N accounts" line under the "Your accounts" heading. |
 | `showAccountNumberOnDashboard()` | `DashboardView` | Passes `null` instead of a number line to `AccountCard`, which then omits it. |
 | `allowAccountNumberReveal()` | `DashboardView`, `AccountDetailView` | Uses `AccountNumberDisplay` instead of a plain masked `Span`. |
 
@@ -128,7 +129,7 @@ Sign out calls `AuthenticationContext.logout()`, which invalidates the session t
 
 ## Testing and coverage
 
-There are no unit tests under `src/test/java/com/mockingbirdbank/ui/`. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching, and testing them needs a browser fixture. The UI still counts toward the 30% project-wide floor.
+The only unit test under `src/test/java/com/mockingbirdbank/ui/` is `view/DashboardViewTest.java`. It builds `DashboardView` directly with a mocked `AccountService` (no running Vaadin UI is needed to construct these components) and checks the `showAccountCount` line. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching, and testing them needs a browser fixture. The UI still counts toward the 30% project-wide floor.
 
 The UI is exercised instead by:
 

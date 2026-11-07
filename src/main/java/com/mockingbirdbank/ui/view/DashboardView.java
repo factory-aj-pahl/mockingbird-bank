@@ -142,6 +142,13 @@ public class DashboardView extends VerticalLayout {
         H2 heading = new H2("Your accounts");
         heading.getStyle().set("font-family", "Georgia, serif").set("margin", "0");
 
+        VerticalLayout section = new VerticalLayout(heading);
+        section.setPadding(false);
+        section.setSpacing(true);
+        if (featureFlagService.showAccountCount()) {
+            section.add(accountCountLine(accounts.size()));
+        }
+
         FlexLayout grid = new FlexLayout();
         grid.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         grid.getStyle().set("gap", "1.25rem");
@@ -153,10 +160,19 @@ public class DashboardView extends VerticalLayout {
                                         account,
                                         showAccountNumber ? accountNumber(account, "") : null)));
 
-        VerticalLayout section = new VerticalLayout(heading, grid);
-        section.setPadding(false);
-        section.setSpacing(true);
+        section.add(grid);
         return section;
+    }
+
+    private Span accountCountLine(int count) {
+        Span line = new Span(accountCountSummary(count));
+        line.addClassName("account-count-summary");
+        line.getStyle().set("color", "var(--mb-text-muted)").set("font-size", "0.9rem");
+        return line;
+    }
+
+    static String accountCountSummary(int count) {
+        return "You have " + count + (count == 1 ? " account" : " accounts");
     }
 
     /**

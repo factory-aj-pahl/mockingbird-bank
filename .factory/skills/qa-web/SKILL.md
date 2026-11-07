@@ -246,7 +246,7 @@ Pick only the flows the diff calls for. Each lists persona, steps and pass crite
    `/login`; 401/403 are also fine).
 4. `curl -si -H 'X-Correlation-Id: qa-<RUN_ID>' <base>/actuator/health`. PASS: the response
    echoes `X-Correlation-Id: qa-<RUN_ID>`; without the header, a generated ID comes back.
-5. Signed in, open `/actuator/featureflags` in the browser. PASS: JSON with the four flags and
+5. Signed in, open `/actuator/featureflags` in the browser. PASS: JSON with the five flags and
    the values expected for this target: the `mockingbird.feature-flags` defaults in
    `src/main/resources/application.yml` (as of the code under test), plus any override this run
    applied.
@@ -282,6 +282,7 @@ Confirm each override took effect via `/actuator/featureflags` before checking t
 | `SHOW_ACCOUNT_NUMBER_ON_DASHBOARD` | `false` | Cards show no account number line (no blank gap); the hero "Primary account" line remains |
 | `ALLOW_ACCOUNT_NUMBER_REVEAL` | `false` | Masked numbers are plain text: no eye buttons on cards, hero or detail header, and no "Show account numbers" toolbar |
 | `SHOW_BUILD_VERSION` | `false` | No `#build-version` under the wordmark; `/actuator/info` still works |
+| `SHOW_ACCOUNT_COUNT` | `true` | "You have 3 accounts" (`.account-count-summary`) directly under the "Your accounts" heading for the seeded holder; with the default (`false`) the line is absent |
 
 Always restore the defaults and re-check `/actuator/featureflags` before finishing.
 
