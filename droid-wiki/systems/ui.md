@@ -129,7 +129,7 @@ Sign out calls `AuthenticationContext.logout()`, which invalidates the session t
 
 ## Testing and coverage
 
-The only unit test under `src/test/java/com/mockingbirdbank/ui/` is `view/DashboardViewTest.java`. It builds `DashboardView` directly with a mocked `AccountService` (no running Vaadin UI is needed to construct these components) and checks the `showAccountCount` line. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching, and testing them needs a browser fixture. The UI still counts toward the 30% project-wide floor.
+The only unit test under `src/test/java/com/mockingbirdbank/ui/` is `view/DashboardViewTest.java`. It builds `DashboardView` directly with a mocked `AccountService` (no running Vaadin UI is needed to construct these components) and checks the `showAccountCount` line. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching. Plain construction tests like `DashboardViewTest` can check which components a view adds, but anything that depends on the browser (client callbacks, navigation, timers) still needs a browser fixture. The UI still counts toward the 30% project-wide floor.
 
 The UI is exercised instead by:
 
