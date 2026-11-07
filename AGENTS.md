@@ -598,3 +598,9 @@ initializes lazily on first real dispatch, which makes an otherwise-correct
 authenticated request 403 in that test harness only. The full login -> dashboard
 -> logout flow has been verified against a live `bootRun` instance; see the
 comment on that test for details before "fixing" it.
+
+## Pull requests
+
+- After opening a non-feature PR into `master`, enable auto-merge: `gh pr merge <PR number> --auto --squash`.
+- For feature PRs governed by the Linear tracker, enable auto-merge only after a newly applied `approved` label authorizes the version-only bump and that bump has been pushed to the PR.
+- Never merge directly or bypass required checks.
