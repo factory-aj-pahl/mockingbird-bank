@@ -39,4 +39,9 @@ public class FeatureFlagsProperties {
      * is deployed is useful in every environment, and the top bar is only shown after sign-in.
      */
     private boolean showBuildVersion = true;
+
+    /**
+     * Whether the dashboard shows a "You have N accounts" line under its "Your accounts" heading.
+     */
+    private boolean showAccountCount = false;
 }

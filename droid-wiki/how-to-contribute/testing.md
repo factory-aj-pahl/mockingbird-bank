@@ -106,11 +106,12 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 | `src/test/java/com/mockingbirdbank/observability/BuildVersionTest.java` | JUnit | Version, commit, branch, display format, missing metadata, startup log |
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagServiceTest.java` | JUnit | Defaults, overrides, `allFlags()` |
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagsEndpointTest.java` | JUnit | Endpoint delegates to the service |
+| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Mockito | `showAccountCount` line: singular, plural, no extra `AccountService` calls, absent when the flag is off |
 | `src/test/java/com/mockingbirdbank/config/logging/ScrubbingMessageConverterTest.java` | JUnit | Password, token, Bearer header, card numbers, null and empty input |
 
 ## Known gaps
 
-- No JUnit tests for anything in `com.mockingbirdbank.ui`. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
+- `DashboardViewTest` is the only JUnit test in `com.mockingbirdbank.ui`, and it covers only the account count line. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
 - `CircuitBreakerBehaviorTest` checks tripping only, not recovery through half-open, although `AGENTS.md` says it verifies both.
 - Nothing tests that `/accounts/{id}` refuses another holder's account. `AccountService.requireAccount` has no ownership check, so such a test would fail today. See [Security](../security.md).
 - The Playwright suite runs only on demand. The post-publish smoke test in `.github/workflows/publish-image.yml` checks only that the image boots and is healthy.

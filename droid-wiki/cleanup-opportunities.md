@@ -57,12 +57,12 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 - **Low: no `@PageTitle` on the main views.** Only `LoginView` sets one; `DashboardView` and `AccountDetailView` do not.
 - **Low: primary account line ignores `showAccountNumberOnDashboard`.** `balanceHero` always adds `primaryAccountLine` (`DashboardView.java:116-118`). With the flag off, the card numbers disappear but the hero still shows one. With it on, the first (checking) account has two independent reveal widgets on the same page.
 - **Low: mixed `actions/checkout` versions.** `.github/workflows/droid-wiki-refresh.yml` uses `actions/checkout@v6` in both jobs while every other workflow uses `@v5`. Nothing depends on the difference (see [pitfalls](background/pitfalls.md#a-bad-factory_wiki_pr_token-looks-like-a-missing-credential)), so either direction works; moving the other nine checkout steps up to v6 avoids touching the wiki workflow. Dependabot's GitHub Actions entry should eventually propose that bump.
-- **Low: flag defaults are written twice.** `FeatureFlagsProperties` field initializers and `src/main/resources/application.yml:95-100` must agree, and nothing checks that.
+- **Low: flag defaults are written twice.** `FeatureFlagsProperties` field initializers and `src/main/resources/application.yml:95-101` must agree, and nothing checks that.
 
 ## Test gaps
 
 - **Medium:** no test that `requireAccount` / `forAccount` reject another holder's account (they do not today; see above).
-- **Low:** `src/test/java/com/mockingbirdbank/` has no `ui` package. `AccountNumberDisplay` (reveal, hide, the 30-second auto-hide generation check, detach) has no unit test even though its logic is non-trivial. Plain JUnit can construct it with a mocked `AccountService`.
+- **Low:** the only test under `src/test/java/com/mockingbirdbank/ui/` is `DashboardViewTest`, which covers just the account count line. `AccountNumberDisplay` (reveal, hide, the 30-second auto-hide generation check, detach) has no unit test even though its logic is non-trivial. Plain JUnit can construct it with a mocked `AccountService`.
 - **Low:** `CircuitBreakerBehaviorTest` covers closed to open but not the half-open trial and recovery.
 - **Low:** no test covers the `ServiceUnavailableException` path in `DashboardView` or `AccountDetailView`.
 - **Low:** no test asserts that `FeatureFlagsProperties` defaults match `application.yml`.

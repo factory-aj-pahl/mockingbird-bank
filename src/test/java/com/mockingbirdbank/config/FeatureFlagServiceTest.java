@@ -14,6 +14,7 @@ class FeatureFlagServiceTest {
         assertThat(service.showWelcomeBanner()).isFalse();
         assertThat(service.allowAccountNumberReveal()).isTrue();
         assertThat(service.showBuildVersion()).isTrue();
+        assertThat(service.showAccountCount()).isFalse();
     }
 
     @Test
@@ -23,6 +24,7 @@ class FeatureFlagServiceTest {
         properties.setShowWelcomeBanner(true);
         properties.setAllowAccountNumberReveal(false);
         properties.setShowBuildVersion(false);
+        properties.setShowAccountCount(true);
 
         FeatureFlagService service = new FeatureFlagService(properties);
 
@@ -30,6 +32,7 @@ class FeatureFlagServiceTest {
         assertThat(service.showWelcomeBanner()).isTrue();
         assertThat(service.allowAccountNumberReveal()).isFalse();
         assertThat(service.showBuildVersion()).isFalse();
+        assertThat(service.showAccountCount()).isTrue();
     }
 
     @Test
@@ -43,6 +46,7 @@ class FeatureFlagServiceTest {
                 .containsEntry("showAccountNumberOnDashboard", true)
                 .containsEntry("showWelcomeBanner", true)
                 .containsEntry("allowAccountNumberReveal", true)
-                .containsEntry("showBuildVersion", true);
+                .containsEntry("showBuildVersion", true)
+                .containsEntry("showAccountCount", false);
     }
 }

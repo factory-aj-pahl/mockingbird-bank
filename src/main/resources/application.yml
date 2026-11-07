@@ -98,3 +98,4 @@ mockingbird:
     show-welcome-banner: false
     allow-account-number-reveal: true
     show-build-version: true
+    show-account-count: false

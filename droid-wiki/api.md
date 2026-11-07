@@ -81,7 +81,8 @@ Read-only. Returns `FeatureFlagService.allFlags()`, a map of flag name to boolea
   "showAccountNumberOnDashboard": true,
   "showWelcomeBanner": false,
   "allowAccountNumberReveal": true,
-  "showBuildVersion": true
+  "showBuildVersion": true,
+  "showAccountCount": false
 }
 ```
 

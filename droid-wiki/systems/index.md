@@ -22,7 +22,7 @@ The application code lives in nine packages under `src/main/java/com/mockingbird
 
 Counts come from `git ls-files` on `src/main/java` and `src/test/java` at HEAD `5fbf51f`.
 
-The test-to-code ratio is 0.61 by lines (1,326 test lines for 2,158 main lines) and 0.5 by files. That average hides a split: the `ui` package has 836 lines and no unit tests at all, while `service` has twice as many test lines as main lines. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
+The test-to-code ratio is 0.61 by lines (1,326 test lines for 2,158 main lines) and 0.5 by files. That average hides a split: the `ui` package has 836 lines and no unit tests in these counts (`DashboardViewTest`, added since, covers only the dashboard's account count line), while `service` has twice as many test lines as main lines. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
 
 ## Layering
 

@@ -2,7 +2,7 @@
 
 Active contributors: ajpahl1008 (AJ Pahl)
 
-Mockingbird Bank has four boolean feature flags that switch small, optional pieces of UI on or off per environment. They are plain Spring configuration properties under `mockingbird.feature-flags.*`, read once at startup, with a typed service for call sites and a read-only Actuator endpoint for operators.
+Mockingbird Bank has five boolean feature flags that switch small, optional pieces of UI on or off per environment. They are plain Spring configuration properties under `mockingbird.feature-flags.*`, read once at startup, with a typed service for call sites and a read-only Actuator endpoint for operators.
 
 ## Purpose
 
@@ -18,6 +18,7 @@ There is no flag server, no per-user targeting and no runtime toggling. Values a
 | `showWelcomeBanner` | `mockingbird.feature-flags.show-welcome-banner` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_WELCOME_BANNER` | `false` | `DashboardView` constructor | A navy "Hi Jordan - you're viewing an early preview of the redesigned dashboard." banner above the balance hero. |
 | `allowAccountNumberReveal` | `mockingbird.feature-flags.allow-account-number-reveal` | `MOCKINGBIRD_FEATURE_FLAGS_ALLOW_ACCOUNT_NUMBER_REVEAL` | `true` | `DashboardView.accountNumber`, `AccountDetailView.accountHeader` | Masked numbers become an `AccountNumberDisplay` with an eye button, and the dashboard gets its "Show account numbers" toolbar. When off, they are plain masked `Span`s and the toolbar is not added. See [Account number reveal](account-number-reveal.md). |
 | `showBuildVersion` | `mockingbird.feature-flags.show-build-version` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_BUILD_VERSION` | `true` | `MainLayout` constructor | The running version appears under the wordmark in the top bar. See [Build version](build-version.md). |
+| `showAccountCount` | `mockingbird.feature-flags.show-account-count` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_COUNT` | `false` | `DashboardView.accountsSection` | A muted "You have N accounts" line ("You have 1 account" for one) directly under the "Your accounts" heading. N is the size of the account list the dashboard already loaded, so the line adds no query. See [Dashboard](dashboard.md). |
 
 The defaults are set twice, once as Java field initializers in `src/main/java/com/mockingbirdbank/config/FeatureFlagsProperties.java` and once in `src/main/resources/application.yml`. They agree today. If they ever disagree, the YAML value wins at runtime while unit tests that construct `FeatureFlagsProperties` directly see the Java value.
 
@@ -44,7 +45,7 @@ graph LR
 
 1. At startup Spring binds `mockingbird.feature-flags.*` into `FeatureFlagsProperties`. An environment variable outranks `application.yml`, so `MOCKINGBIRD_FEATURE_FLAGS_SHOW_WELCOME_BANNER=true` turns the banner on.
 2. Views receive `FeatureFlagService` by constructor injection and branch on it while building their components. Vaadin builds a view per navigation, so the value is read at that point, but it never changes after startup.
-3. `GET /actuator/featureflags` returns the current values as JSON, for example `{"showAccountNumberOnDashboard":true,"showWelcomeBanner":false,"allowAccountNumberReveal":true,"showBuildVersion":true}`. The endpoint is listed in `management.endpoints.web.exposure.include` and requires an authenticated session in `src/main/java/com/mockingbirdbank/security/SecurityConfig.java`. See [API](../api.md).
+3. `GET /actuator/featureflags` returns the current values as JSON, for example `{"showAccountNumberOnDashboard":true,"showWelcomeBanner":false,"allowAccountNumberReveal":true,"showBuildVersion":true,"showAccountCount":false}`. The endpoint is listed in `management.endpoints.web.exposure.include` and requires an authenticated session in `src/main/java/com/mockingbirdbank/security/SecurityConfig.java`. See [API](../api.md).
 
 ### The underscore gotcha
 
@@ -75,12 +76,13 @@ The PR template asks whether UI-facing work is behind a flag. See [Patterns and 
 
 | Test | File | What it checks |
 | --- | --- | --- |
-| `FeatureFlagServiceTest.defaultsMatchTodaysActualBehavior` | `src/test/java/com/mockingbirdbank/config/FeatureFlagServiceTest.java` | The Java defaults: three on, `showWelcomeBanner` off. |
+| `FeatureFlagServiceTest.defaultsMatchTodaysActualBehavior` | `src/test/java/com/mockingbirdbank/config/FeatureFlagServiceTest.java` | The Java defaults: three on, `showWelcomeBanner` and `showAccountCount` off. |
 | `FeatureFlagServiceTest.reflectsOverriddenProperties` | same | Every accessor follows its property when flipped. |
-| `FeatureFlagServiceTest.allFlagsReflectsCurrentValues` | same | `allFlags()` contains all four keys with current values. |
+| `FeatureFlagServiceTest.allFlagsReflectsCurrentValues` | same | `allFlags()` contains all five keys with current values. |
 | `FeatureFlagsEndpointTest.flagsDelegatesToFeatureFlagService` | `src/test/java/com/mockingbirdbank/config/FeatureFlagsEndpointTest.java` | The endpoint returns the service's map. |
+| `DashboardViewTest` | `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | The `showAccountCount` line: singular and plural text, the count taken from the already-loaded accounts, and no line when the flag is off. |
 
-These are plain unit tests. Nothing tests env-var binding or the view branches directly. The `config` package falls under the 90% per-class JaCoCo gate described in [Testing](../how-to-contribute/testing.md).
+These are plain unit tests. Nothing tests env-var binding. `DashboardViewTest` is the only test that builds a view and checks a flag branch; the other view branches are covered only by browser QA. The `config` package falls under the 90% per-class JaCoCo gate described in [Testing](../how-to-contribute/testing.md).
 
 ## Key source files
 
@@ -90,7 +92,7 @@ These are plain unit tests. Nothing tests env-var binding or the view branches d
 | `src/main/java/com/mockingbirdbank/config/FeatureFlagService.java` | Typed accessors and `allFlags()` |
 | `src/main/java/com/mockingbirdbank/config/FeatureFlagsEndpoint.java` | `/actuator/featureflags` |
 | `src/main/resources/application.yml` | YAML defaults and Actuator exposure |
-| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Reads three of the four flags |
+| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Reads four of the five flags |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Reads `allowAccountNumberReveal` |
 | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | Reads `showBuildVersion` |
 | `k8s/local/kustomization.yaml` | Per-deploy overrides for k3d |
