@@ -598,3 +598,8 @@ initializes lazily on first real dispatch, which makes an otherwise-correct
 authenticated request 403 in that test harness only. The full login -> dashboard
 -> logout flow has been verified against a live `bootRun` instance; see the
 comment on that test for details before "fixing" it.
+
+## Pull requests
+
+- After opening a PR into `master`, enable auto-merge: `gh pr merge <PR number> --auto --squash`.
+- Never merge directly or bypass required checks.
