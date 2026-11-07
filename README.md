@@ -1,4 +1,4 @@
-# Mockingbird Bank
+# Mockingbird Bank - Retail
 
 A read-only account dashboard SPA: sign in, see your accounts and balances, drill into a
 transaction history per account. Spring Boot 4 backend, Vaadin 25 (Flow + React) frontend,
