@@ -2,7 +2,9 @@ name: Droid Auto Review
 
 on:
   pull_request:
-    types: [opened, ready_for_review, reopened]
+    # synchronize: droid-review is a required check on master, so every new
+    # PR head needs its own review result or the PR can never merge.
+    types: [opened, synchronize, ready_for_review, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
