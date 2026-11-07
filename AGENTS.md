@@ -601,6 +601,7 @@ comment on that test for details before "fixing" it.
 
 ## Pull requests
 
-- After opening a non-feature PR into `master`, enable auto-merge: `gh pr merge <PR number> --auto --squash`.
+- After opening a non-feature PR into `master`, enable auto-merge: `gh pr merge <PR number> --auto --squash`, except for the rolling wiki PR below.
 - For feature PRs governed by the Linear tracker, enable auto-merge only after a newly applied `approved` label authorizes the version-only bump and that bump has been pushed to the PR.
+- Keep the rolling `docs: refresh wiki` PR created by `.github/workflows/droid-wiki-refresh.yml` open and do not enable auto-merge; the next refresh updates it in place.
 - Never merge directly or bypass required checks.
