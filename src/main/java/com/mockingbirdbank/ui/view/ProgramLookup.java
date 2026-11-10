@@ -20,14 +20,15 @@ import org.springframework.transaction.TransactionException;
  * breaker. While the breaker is closed, and on a failed half-open trial, a failing query arrives as
  * the database error itself: translated by the repository ({@link DataAccessException}) or
  * untranslated from Hibernate ({@link PersistenceException}). The {@code @Transactional} proxy
- * around {@code ProgramService} works outside the breaker and throws its own {@link
- * TransactionException}, whatever the breaker state, when it can't take a connection from the pool
- * or can't commit or roll back. These types also cover failures that are bugs rather than outages,
- * such as a query against a missing table or a Hibernate mapping error. They get the same fallback,
- * because a programs failure must not take the accounts down with it. Every fallback is tracked as
- * {@code programs.unavailable} with the exception's simple class name as the reason, and the
- * database errors are logged at WARN with their stack trace, so a bug still shows up as an error
- * count. Exceptions outside these types still propagate to {@code GlobalErrorHandler}.
+ * around {@code ProgramService} works outside the breaker, whatever its state. It throws a {@link
+ * TransactionException} when it can't take a connection from the pool, or when Spring can't
+ * translate a failed commit or rollback; other commit or rollback failures arrive as a {@link
+ * DataAccessException}. These types also cover failures that are bugs rather than outages, such as
+ * a query against a missing table or a Hibernate mapping error. They get the same fallback, because
+ * a programs failure must not take the accounts down with it. Every fallback is tracked as {@code
+ * programs.unavailable} with the exception's simple class name as the reason, and the database
+ * errors are logged at WARN with their stack trace, so a bug still shows up as an error count.
+ * Exceptions outside these types still propagate to {@code GlobalErrorHandler}.
  */
 final class ProgramLookup {
 
