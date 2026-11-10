@@ -85,8 +85,8 @@ The primary account line and the checking card are two separate displays for the
 
 ## Integration points
 
-- **Analytics:** one `dashboard.viewed` event per view construction, with attribute `accountCount`. See [Analytics](../systems/analytics.md).
-- **Resilience:** every `AccountService` repository call runs inside the `accounts` circuit breaker. An open `accounts` breaker during construction surfaces as an unhandled `ServiceUnavailableException`, which `GlobalErrorHandler` tracks. The `programs` breaker is separate: the programs section catches its `ServiceUnavailableException` and shows a message instead. See [Resilience](../systems/resilience.md).
+- **Analytics:** one `dashboard.viewed` event per view construction, with attribute `accountCount`, plus `programs.unavailable` (reason the exception's simple class name) when the programs section shows the "unavailable" message. See [Analytics](../systems/analytics.md).
+- **Resilience:** every `AccountService` repository call runs inside the `accounts` circuit breaker. An open `accounts` breaker during construction surfaces as an unhandled `ServiceUnavailableException`, which `GlobalErrorHandler` tracks. The `programs` breaker is separate: through `ProgramLookup`, the programs section catches its `ServiceUnavailableException`, and the database errors that arrive before it opens, and shows a message instead. See [Resilience](../systems/resilience.md).
 - **Flags:** `showWelcomeBanner`, `showAccountCount`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal`, `showAccountPrograms`. See [Feature flags](feature-flags.md).
 - **Theme:** colors come from `--mb-*` CSS variables in `src/main/frontend/themes/mockingbird/styles.css`, so dark mode applies without code in the view. See [UI](../systems/ui.md).
 

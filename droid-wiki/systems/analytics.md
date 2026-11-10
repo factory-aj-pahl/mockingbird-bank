@@ -43,6 +43,9 @@ Three main classes (188 lines) and three test classes (226 lines). The package s
 graph LR
     Dash[DashboardView] --> AES[AnalyticsEventService]
     Detail[AccountDetailView] --> AES
+    Dash --> Lookup[ProgramLookup]
+    Detail --> Lookup
+    Lookup --> AES
     Acct[AccountService] --> AES
     Auth[AuthenticationEventListener] --> AES
     GEH[GlobalErrorHandler] --> AES
@@ -102,7 +105,7 @@ Every `track`/`trackError` call in `src/main`:
 
 | Event | Outcome | Reason | Attributes | Emitted by |
 | --- | --- | --- | --- | --- |
-| `dashboard.viewed` | success | `n/a` | `accountCount` | `DashboardView` constructor, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:60` |
+| `dashboard.viewed` | success | `n/a` | `accountCount` | `DashboardView` constructor, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:62` |
 | `account.viewed` | success | `n/a` | `accountId` | `AccountDetailView.setParameter`, `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:72` |
 | `account.viewed` | error | `not_found` | `accountId` | `AccountDetailView.setParameter` when `requireAccount` throws `IllegalArgumentException` (a missing account or another holder's account), `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:68` |
 | `account_number.revealed` | success | `n/a` | `accountId`, `scope=single` | `AccountService.revealAccountNumber`, `src/main/java/com/mockingbirdbank/service/AccountService.java:88` |

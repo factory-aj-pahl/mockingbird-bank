@@ -80,8 +80,8 @@ Amounts are signed (negative is a debit), so debits render with a minus sign fro
 
 ## Integration points
 
-- **Analytics:** `account.viewed` (success, `accountId`) and `account.viewed` / `not_found`. See [Analytics](../systems/analytics.md).
-- **Resilience:** `requireAccount` (including its `currentHolder()` lookup) runs inside the `accounts` breaker and `forAccount` inside the `transactions` breaker. An open `accounts` or `transactions` breaker throws `ServiceUnavailableException`, which this view does not catch, so it reaches `GlobalErrorHandler`. An open `programs` breaker is caught in the program section. See [Resilience](../systems/resilience.md).
+- **Analytics:** `account.viewed` (success, `accountId`) and `account.viewed` / `not_found`, plus `programs.unavailable` (reason the exception's simple class name) when the program section shows the "unavailable" message. See [Analytics](../systems/analytics.md).
+- **Resilience:** `requireAccount` (including its `currentHolder()` lookup) runs inside the `accounts` breaker and `forAccount` inside the `transactions` breaker. An open `accounts` or `transactions` breaker throws `ServiceUnavailableException`, which this view does not catch, so it reaches `GlobalErrorHandler`. An open `programs` breaker, and a database error before it opens, are caught in the program section through `ProgramLookup`. See [Resilience](../systems/resilience.md).
 - **Flags:** `allowAccountNumberReveal` and `showAccountPrograms`. `showAccountNumberOnDashboard` does not apply here. See [Feature flags](feature-flags.md).
 - **Persistence:** `Transaction.account` is a `@ManyToOne`; the grid only reads scalar columns. See [Persistence](../systems/persistence.md).
 

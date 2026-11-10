@@ -45,9 +45,9 @@ graph LR
 | Feature | [Services](../systems/services.md) | [Analytics](../systems/analytics.md) | [Resilience](../systems/resilience.md) | Flags | [Security](../security.md) |
 | --- | --- | --- | --- | --- | --- |
 | Sign-in | `AccountService.currentHolder` (top bar greeting) | `user.login` | no | no | form login, BCrypt |
-| Dashboard | `AccountService`, `ProgramService` | `dashboard.viewed` | `accounts`, `programs` breakers | `showWelcomeBanner`, `showAccountCount`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal`, `showAccountPrograms` | `@PermitAll` route |
-| Account detail | `AccountService`, `TransactionService`, `ProgramService` | `account.viewed` | `accounts`, `transactions`, `programs` breakers | `allowAccountNumberReveal`, `showAccountPrograms` | `@PermitAll` route, owner-only `requireAccount` |
-| Account programs | `ProgramService` | no | `programs` breaker | `showAccountPrograms` | owner-only evaluation, composite foreign key on program links |
+| Dashboard | `AccountService`, `ProgramService` | `dashboard.viewed`, `programs.unavailable` | `accounts`, `programs` breakers | `showWelcomeBanner`, `showAccountCount`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal`, `showAccountPrograms` | `@PermitAll` route |
+| Account detail | `AccountService`, `TransactionService`, `ProgramService` | `account.viewed`, `programs.unavailable` | `accounts`, `transactions`, `programs` breakers | `allowAccountNumberReveal`, `showAccountPrograms` | `@PermitAll` route, owner-only `requireAccount` |
+| Account programs | `ProgramService` | `programs.unavailable` | `programs` breaker | `showAccountPrograms` | owner-only evaluation, composite foreign key on program links |
 | Account number reveal | `AccountService.revealAccountNumber(s)` | `account_number.revealed` | `accounts` breaker | `allowAccountNumberReveal` | ownership check |
 | Build version | none | no | no | `showBuildVersion` | `/actuator/info` is public |
 

@@ -43,6 +43,7 @@ public class DashboardView extends VerticalLayout {
     private final FeatureFlagService featureFlagService;
     private final AccountService accountService;
     private final ProgramService programService;
+    private final AnalyticsEventService analytics;
     private final List<AccountNumberDisplay> numberDisplays = new ArrayList<>();
     private final Button revealAllToggle = new Button();
 
@@ -54,6 +55,7 @@ public class DashboardView extends VerticalLayout {
         this.featureFlagService = featureFlagService;
         this.accountService = accountService;
         this.programService = programService;
+        this.analytics = analytics;
         AccountHolder holder = accountService.currentHolder();
         List<Account> accounts = accountService.accountsFor(holder);
         BigDecimal total = accountService.totalBalance(holder);
@@ -75,7 +77,7 @@ public class DashboardView extends VerticalLayout {
         VerticalLayout programsSection = null;
         boolean unmetProgramRules = false;
         if (featureFlagService.showAccountPrograms()) {
-            Optional<List<ProgramEvaluation>> programs = programEvaluations(holder, analytics);
+            Optional<List<ProgramEvaluation>> programs = programEvaluations(holder);
             programsSection =
                     programs.map(DashboardView::programsSection)
                             .orElseGet(DashboardView::programsUnavailableSection);
@@ -188,8 +190,7 @@ public class DashboardView extends VerticalLayout {
     }
 
     /** The holder's evaluated programs, or empty when they can't be read right now. */
-    private Optional<List<ProgramEvaluation>> programEvaluations(
-            AccountHolder holder, AnalyticsEventService analytics) {
+    private Optional<List<ProgramEvaluation>> programEvaluations(AccountHolder holder) {
         return ProgramLookup.orUnavailable(analytics, () -> programService.evaluationsFor(holder));
     }
 

@@ -102,7 +102,7 @@ Riley's date of birth is relative to the seed date, so a freshly seeded database
 
 - **Resilience:** the `programs` breaker shares the tuning from `ResilienceConfig.defaultConfig()` but keeps its own state, so failing program queries do not stop accounts or transactions from loading. Both views read programs through `ProgramLookup`, which turns `ServiceUnavailableException` and the database errors that arrive before the breaker opens (`DataAccessException`, `TransactionException`, `PersistenceException`) into the "unavailable" message, tracks each one as `programs.unavailable` with the exception's simple name as the reason, and logs the database errors at WARN. Those types also cover bugs such as a query against a missing table; they get the same fallback and still show up in the error count. Any other exception still propagates. See [Resilience](../systems/resilience.md).
 - **Security:** evaluation is per holder, and accounts owned by someone else are never shown. The account page only evaluates an account after `requireAccount` has confirmed it belongs to the signed-in holder. See [Security](../security.md#program-links).
-- **Analytics:** none. Viewing programs records no events of its own.
+- **Analytics:** viewing programs records no events of its own. When a program section shows the "unavailable" message, `ProgramLookup` records `programs.unavailable` (outcome error, reason the exception's simple class name). See [Analytics](../systems/analytics.md).
 
 ## Entry points for modification
 

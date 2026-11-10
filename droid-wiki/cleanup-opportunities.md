@@ -48,12 +48,12 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 
 ## Inefficiencies and UX nits
 
-- **Low: duplicate queries on dashboard load.** `MainLayout` and `DashboardView` each call `currentHolder()`, and `totalBalance(holder)` re-runs `accountsFor(holder)` that the view just ran (`src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:57-59`, `src/main/java/com/mockingbirdbank/service/AccountService.java:132-136`). Summing the list the view already has would remove one query; caching the holder per request would remove another.
-- **Low: "Across 1 accounts".** No singular form at `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:124`.
+- **Low: duplicate queries on dashboard load.** `MainLayout` and `DashboardView` each call `currentHolder()`, and `totalBalance(holder)` re-runs `accountsFor(holder)` that the view just ran (`src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:59-61`, `src/main/java/com/mockingbirdbank/service/AccountService.java:132-136`). Summing the list the view already has would remove one query; caching the holder per request would remove another.
+- **Low: "Across 1 accounts".** No singular form at `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:126`.
 - **Low: mixed date formats.** The account header prints `openedAt` as ISO `LocalDate` (`AccountDetailView.java:137`) while the grid uses `MM/dd/yyyy` (`AccountDetailView.java:38`).
 - **Low: dark-mode button label never changes.** It always reads "Dark mode" (`src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java:69`), even when dark mode is on.
 - **Low: no `@PageTitle` on the main views.** Only `LoginView` sets one; `DashboardView` and `AccountDetailView` do not.
-- **Low: primary account line ignores `showAccountNumberOnDashboard`.** `balanceHero` always adds `primaryAccountLine` (`DashboardView.java:139-141`). With the flag off, the card numbers disappear but the hero still shows one. With it on, the first (checking) account has two independent reveal widgets on the same page.
+- **Low: primary account line ignores `showAccountNumberOnDashboard`.** `balanceHero` always adds `primaryAccountLine` (`DashboardView.java:141-143`). With the flag off, the card numbers disappear but the hero still shows one. With it on, the first (checking) account has two independent reveal widgets on the same page.
 - **Low: mixed `actions/checkout` versions.** `.github/workflows/droid-wiki-refresh.yml` uses `actions/checkout@v6` in both jobs while every other workflow uses `@v5`. Nothing depends on the difference (see [pitfalls](background/pitfalls.md#a-bad-factory_wiki_pr_token-looks-like-a-missing-credential)), so either direction works; moving the other nine checkout steps up to v6 avoids touching the wiki workflow. Dependabot's GitHub Actions entry should eventually propose that bump.
 - **Low: flag defaults are written twice.** `FeatureFlagsProperties` field initializers and `src/main/resources/application.yml:95-102` must agree, and nothing checks that.
 
