@@ -127,7 +127,7 @@ k3d only needs the Docker engine, so turning off Rancher Desktop's built-in Kube
 ## Things to know
 
 - Each deploy leaves an image in the nodes' containerd. Kubelet image garbage collection removes unused ones when node disk fills; the script does not clean them up.
-- The database starts empty on the first deploy, so Flyway runs V1 and `DataInitializer` seeds the demo holder. Both are skipped on later deploys while the PVC exists. See [Persistence](../systems/persistence.md).
+- The database starts empty on the first deploy, so Flyway runs V1 and V2 and `DataInitializer` seeds the two demo holders. Both are skipped on later deploys while the PVC exists. See [Persistence](../systems/persistence.md).
 - The script's `help` prints lines 2 to 17 of the script file, so the header comment is the help text.
 
 ## Key source files

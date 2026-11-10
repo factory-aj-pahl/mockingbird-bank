@@ -134,7 +134,7 @@ YAML
         echo "Reach it with: kubectl --context $CONTEXT -n kube-system port-forward svc/traefik 8081:80"
         echo "then open http://${APP_HOST}:8081"
     fi
-    echo "Login:  jordan.ellis / mockingbird (seeded on an empty database)"
+    echo "Login:  jordan.ellis or riley.chen / mockingbird (seeded on an empty database)"
 }
 
 down() {

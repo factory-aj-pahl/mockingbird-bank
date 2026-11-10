@@ -18,7 +18,7 @@ Restrict every screen to an authenticated account holder and tell the services w
 | `AppUser` | `src/main/java/com/mockingbirdbank/model/AppUser.java` | Username, BCrypt `passwordHash`, one-to-one link to `AccountHolder`. |
 | `AuthenticationEventListener` | `src/main/java/com/mockingbirdbank/analytics/AuthenticationEventListener.java` | Turns Spring Security auth events into `user.login` analytics events. |
 | `MainLayout` | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | "Welcome back, <name>" and the Sign out button. |
-| `DataInitializer` | `src/main/java/com/mockingbirdbank/config/DataInitializer.java` | Seeds `jordan.ellis` with password `mockingbird` (or `MOCKINGBIRD_DEV_PASSWORD`), BCrypt-encoded. |
+| `DataInitializer` | `src/main/java/com/mockingbirdbank/config/DataInitializer.java` | Seeds two logins, `jordan.ellis` and `riley.chen`, both with password `mockingbird` (or `MOCKINGBIRD_DEV_PASSWORD`), BCrypt-encoded. |
 
 ## How it works
 
@@ -90,7 +90,7 @@ Both increment `product.events` and write a line to `build/logs/analytics-events
 ## Integration points
 
 - **Services:** `AccountService.currentHolder()` uses `SecurityContextHolder` to map the principal to an `AccountHolder`, and throws `IllegalStateException` if the user has no linked holder. See [Services](../systems/services.md).
-- **Seed data:** the demo login is created only on an empty database. See [Persistence](../systems/persistence.md).
+- **Seed data:** the demo logins are created only on an empty database. See [Persistence](../systems/persistence.md).
 - **Log scrubbing:** `ScrubbingMessageConverter` redacts `password=` style pairs in log lines as a safety net.
 
 ## Entry points for modification
@@ -102,7 +102,7 @@ Both increment `product.events` and write a line to `build/logs/analytics-events
 
 ## Testing
 
-- `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java` (Testcontainers): anonymous redirect, seeded login succeeds with the right principal in the session, wrong password redirects to `/login?error`. It deliberately stops at the login redirect; a follow-up Vaadin request 403s under MockMvc because Vaadin's servlet initializes lazily (see the test's comment and `AGENTS.md`).
+- `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java` (Testcontainers): anonymous redirect, seeded login succeeds with the right principal in the session, the youth login `riley.chen` also redirects to `/` (`seededYouthUserCanLogIn`), wrong password redirects to `/login?error`. It deliberately stops at the login redirect; a follow-up Vaadin request 403s under MockMvc because Vaadin's servlet initializes lazily (see the test's comment and `AGENTS.md`).
 - `src/test/java/com/mockingbirdbank/security/AppUserDetailsServiceTest.java`: maps stored credentials with `ROLE_USER`; unknown user throws `UsernameNotFoundException`.
 - `src/test/java/com/mockingbirdbank/analytics/AuthenticationEventListenerTest.java`: success and failure counters with the exception type as reason.
 - `qa/tests/dashboard.spec.ts`: the full browser flow from redirect to sign-out, plus the wrong-password case. Run with `./scripts/run-interactive-qa.sh` (see [Testing](../how-to-contribute/testing.md)).
@@ -116,4 +116,4 @@ Both increment `product.events` and write a line to `build/logs/analytics-events
 | `src/main/java/com/mockingbirdbank/security/AppUserDetailsService.java` | User lookup |
 | `src/main/java/com/mockingbirdbank/analytics/AuthenticationEventListener.java` | `user.login` events |
 | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | Greeting and Sign out |
-| `src/main/java/com/mockingbirdbank/config/DataInitializer.java` | Demo login seed |
+| `src/main/java/com/mockingbirdbank/config/DataInitializer.java` | Demo login seeds |

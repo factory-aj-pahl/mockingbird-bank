@@ -28,10 +28,12 @@ docker compose up -d     # postgres:16-alpine on localhost:5432, db mydatabase, 
 
 Or do both with one script: `./scripts/dev-up.sh`.
 
-Open http://localhost:8080 and sign in with the demo login seeded by `src/main/java/com/mockingbirdbank/config/DataInitializer.java`:
+Open http://localhost:8080 and sign in with a demo login seeded by `src/main/java/com/mockingbirdbank/config/DataInitializer.java`:
 
-- Username: `jordan.ellis`
-- Password: `mockingbird` (override with `MOCKINGBIRD_DEV_PASSWORD` before the first start)
+- Username: `jordan.ellis` (an adult with three accounts and a Regular program) or `riley.chen` (a customer under 18 with one savings account and a Youth Savings program)
+- Password: `mockingbird` for both (override with `MOCKINGBIRD_DEV_PASSWORD` before the first start)
+
+Programs only appear with `MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_PROGRAMS=true`. See [Account programs](../features/account-programs.md).
 
 The seed only runs on an empty database. To start over, run `docker compose down -v`.
 

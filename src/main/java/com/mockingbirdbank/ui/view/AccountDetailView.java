@@ -4,7 +4,10 @@ import com.mockingbirdbank.analytics.AnalyticsEventService;
 import com.mockingbirdbank.config.FeatureFlagService;
 import com.mockingbirdbank.model.Account;
 import com.mockingbirdbank.model.Transaction;
+import com.mockingbirdbank.resilience.ServiceUnavailableException;
 import com.mockingbirdbank.service.AccountService;
+import com.mockingbirdbank.service.ProgramEvaluation;
+import com.mockingbirdbank.service.ProgramService;
 import com.mockingbirdbank.service.TransactionService;
 import com.mockingbirdbank.ui.layout.MainLayout;
 import com.vaadin.flow.component.Component;
@@ -24,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The transaction history for one account, at /accounts/{id}. Mirrors the "Account Detail" artboard
@@ -40,16 +44,19 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
     private final TransactionService transactionService;
     private final AnalyticsEventService analytics;
     private final FeatureFlagService featureFlagService;
+    private final ProgramService programService;
 
     public AccountDetailView(
             AccountService accountService,
             TransactionService transactionService,
             AnalyticsEventService analytics,
-            FeatureFlagService featureFlagService) {
+            FeatureFlagService featureFlagService,
+            ProgramService programService) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.analytics = analytics;
         this.featureFlagService = featureFlagService;
+        this.programService = programService;
         setPadding(true);
         setSpacing(true);
         getStyle().set("background", "var(--mb-page-bg)").set("min-height", "100%");
@@ -70,7 +77,40 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
         removeAll();
         add(backLink());
         add(accountHeader(account));
+        if (featureFlagService.showAccountPrograms()) {
+            add(programSection(account));
+        }
         add(transactionTable(transactionService.forAccount(accountId)));
+    }
+
+    private VerticalLayout programSection(Account account) {
+        Span label = new Span("Program");
+        label.getStyle()
+                .set("font-size", "0.7rem")
+                .set("text-transform", "uppercase")
+                .set("letter-spacing", "0.06em")
+                .set("color", "var(--mb-text-muted)")
+                .set("font-weight", "600");
+        VerticalLayout section = new VerticalLayout(label);
+        section.addClassName("account-program");
+        section.setPadding(false);
+        section.setSpacing(false);
+        section.getStyle().set("gap", "0.5rem");
+        Optional<ProgramEvaluation> program;
+        try {
+            program = programService.evaluationFor(account);
+        } catch (ServiceUnavailableException e) {
+            section.add(ProgramCard.message(ProgramCard.UNAVAILABLE, "programs-unavailable"));
+            return section;
+        }
+        section.add(
+                program.<Component>map(ProgramCard::new)
+                        .orElseGet(
+                                () ->
+                                        ProgramCard.message(
+                                                "This account isn't part of a program.",
+                                                "program-none")));
+        return section;
     }
 
     private Anchor backLink() {

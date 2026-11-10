@@ -137,6 +137,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
     testImplementation 'org.testcontainers:testcontainers-postgresql'
+    // ProgramMigrationTest drives Flyway directly (migrate to V1, add data, then migrate on)
+    // instead of through Spring Boot's auto-configuration. Version from Spring Boot's BOM.
+    testImplementation 'org.flywaydb:flyway-core'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'com.vaadin:vaadin-testbench-junit5'
 }

@@ -19,5 +19,5 @@ echo "Starting local Postgres (docker compose up -d)..."
 docker compose up -d --wait
 
 echo "Postgres is healthy. Starting the app (./gradlew bootRun)..."
-echo "Sign in at http://localhost:8080 with jordan.ellis / mockingbird (Ctrl+C to stop)."
+echo "Sign in at http://localhost:8080 with jordan.ellis or riley.chen / mockingbird (Ctrl+C to stop)."
 exec ./gradlew bootRun

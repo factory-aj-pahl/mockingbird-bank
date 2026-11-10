@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.mockingbirdbank.analytics.AnalyticsEventService;
+import com.mockingbirdbank.model.AccountHolder;
 import com.mockingbirdbank.repository.AccountRepository;
 import com.mockingbirdbank.repository.AppUserRepository;
 import com.mockingbirdbank.repository.TransactionRepository;
@@ -29,8 +30,10 @@ class CircuitBreakerBehaviorTest {
     void repeatedRepositoryFailuresTripTheBreakerOpenAndThenFailFastWithoutHittingTheRepository() {
         AppUserRepository appUserRepository = mock(AppUserRepository.class);
         AccountRepository accountRepository = mock(AccountRepository.class);
-        when(accountRepository.findById(1L))
+        when(accountRepository.findByHolderIdOrderByAccountTypeAscIdAsc(1L))
                 .thenThrow(new DataAccessResourceFailureException("db is down"));
+        AccountHolder holder = new AccountHolder("Jordan Ellis", "jordan.ellis@example.com");
+        holder.setId(1L);
 
         AccountService accountService =
                 new AccountService(
@@ -43,16 +46,16 @@ class CircuitBreakerBehaviorTest {
         // repository - one real attempt per call, exactly as it should before there's enough
         // history to judge a failure rate from.
         for (int i = 0; i < 10; i++) {
-            assertThatThrownBy(() -> accountService.requireAccount(1L))
+            assertThatThrownBy(() -> accountService.accountsFor(holder))
                     .isInstanceOf(DataAccessResourceFailureException.class);
         }
-        verify(accountRepository, times(10)).findById(1L);
+        verify(accountRepository, times(10)).findByHolderIdOrderByAccountTypeAscIdAsc(1L);
 
         // 100% failure rate over that window trips the breaker open - the 11th call fails fast
         // as ServiceUnavailableException, and the repository mock's call count doesn't move.
-        assertThatThrownBy(() -> accountService.requireAccount(1L))
+        assertThatThrownBy(() -> accountService.accountsFor(holder))
                 .isInstanceOf(ServiceUnavailableException.class);
-        verify(accountRepository, times(10)).findById(1L);
+        verify(accountRepository, times(10)).findByHolderIdOrderByAccountTypeAscIdAsc(1L);
     }
 
     @Test

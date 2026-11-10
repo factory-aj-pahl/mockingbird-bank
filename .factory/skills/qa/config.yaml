@@ -60,12 +60,13 @@ auth:
   login_path: /login
   failure_redirect: /login?error
   notes: >-
-    No sign-up, no roles. DataInitializer seeds exactly one holder + login on an empty
-    database. Sessions are server-side (Vaadin), so any app restart signs everyone out.
+    No sign-up, no roles. DataInitializer seeds two holders, each with a login, on an empty
+    database (Jordan Ellis and Riley Chen, same password). Sessions are server-side (Vaadin), so
+    any app restart signs everyone out.
 
 personas:
   - name: holder
-    description: 'The seeded demo account holder (Jordan Ellis) with three accounts.'
+    description: 'The seeded demo account holder (Jordan Ellis) with three accounts and a Regular program.'
     username: jordan.ellis
     email: jordan.ellis@example.com
     credentials_source: env-var
@@ -75,10 +76,21 @@ personas:
       $MOCKINGBIRD_DEV_PASSWORD (the workflow generates one per run for the app and QA). k3d:
       always the AGENTS.md "Demo login" default (the pod never receives the variable). local:
       the default unless dev-up.sh was started with the variable set. See qa-web Authentication.
-    test_focus: [sign-in, dashboard, account detail, account number reveal, build version, dark mode, sign-out]
+    test_focus: [sign-in, dashboard, account detail, account number reveal, account programs, build version, dark mode, sign-out]
     cannot_do:
       - view another holder's accounts or transactions
       - reveal another holder's account numbers
+  - name: youth_holder
+    description: 'The seeded customer under 18 (Riley Chen) with one savings account in a Youth Savings program.'
+    username: riley.chen
+    email: riley.chen@example.com
+    credentials_source: env-var
+    secret_name: MOCKINGBIRD_DEV_PASSWORD
+    credentials_notes: >-
+      Same password as the holder persona: DataInitializer seeds both logins with it.
+    test_focus: [sign-in, account programs (Youth Savings), cross-account isolation]
+    cannot_do:
+      - view another holder's accounts, transactions or programs
   - name: anonymous
     description: 'Signed-out visitor.'
     credentials_source: none
@@ -125,9 +137,10 @@ cleanup:
   auto_cleanup: true
   strategy: none
   instructions: >-
-    The app is read-only. CI uses a throwaway Postgres service. The only data QA creates is
-    the other_holder persona: run its cleanup_sql after the cross-account flow on every
-    target (k3d and local keep their data between runs). Restore any feature-flag override
-    and the light theme before finishing.
+    The app is read-only. CI uses a throwaway Postgres service. QA changes data in two places,
+    and k3d and local keep their data between runs, so undo both on every target: run the
+    other_holder cleanup_sql after the cross-account flow (W11), and run the W15 restore step
+    after the account programs flow (it temporarily links Vacation Savings into Jordan's
+    program). Restore any feature-flag override and the light theme before finishing.
 
 failure_learning: suggest_in_report

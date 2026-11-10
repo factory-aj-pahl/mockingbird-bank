@@ -2,7 +2,7 @@
 
 Active contributors: ajpahl1008 (AJ Pahl)
 
-The dashboard is the landing screen after sign-in. It shows the holder's total assets, their primary account, and one clickable card per account. It is served at both `/` and `/accounts`.
+The dashboard is the landing screen after sign-in. It shows the holder's total assets, their primary account, and one clickable card per account, plus the holder's programs when the `showAccountPrograms` flag is on. It is served at both `/` and `/accounts`.
 
 ## Purpose
 
@@ -12,11 +12,13 @@ Give the signed-in holder a one-screen summary of every account they own and a l
 
 | Class | File | Role |
 | --- | --- | --- |
-| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | The route. Builds the welcome banner, reveal-all toolbar, balance hero, account count line and accounts grid in its constructor. |
+| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | The route. Builds the welcome banner, reveal-all toolbar, program notice, balance hero, account count line, accounts grid and programs section in its constructor. |
 | `AccountCard` | `src/main/java/com/mockingbirdbank/ui/view/AccountCard.java` | One account tile. Extends `Anchor`, so the whole card links to `accounts/{id}`. |
 | `AccountNumberDisplay` | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number with an eye button. See [Account number reveal](account-number-reveal.md). |
 | `AccountService` | `src/main/java/com/mockingbirdbank/service/AccountService.java` | `currentHolder()`, `accountsFor(holder)`, `totalBalance(holder)`, `revealAccountNumbers()`. |
-| `FeatureFlagService` | `src/main/java/com/mockingbirdbank/config/FeatureFlagService.java` | Gates the banner, the account count line, the number line on cards, and the eye buttons. |
+| `FeatureFlagService` | `src/main/java/com/mockingbirdbank/config/FeatureFlagService.java` | Gates the banner, the account count line, the number line on cards, the eye buttons, and the programs section. |
+| `ProgramService` | `src/main/java/com/mockingbirdbank/service/ProgramService.java` | `evaluationsFor(holder)`, called only when `showAccountPrograms` is on. See [Account programs](account-programs.md). |
+| `ProgramCard` | `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | One program tile, the unmet-requirements notice, and the muted one-line messages. |
 | `MainLayout` | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | Top bar around the view (greeting, dark mode, Sign out). |
 
 ## How it works
@@ -31,6 +33,7 @@ sequenceDiagram
     participant A as AccountService
     participant E as AnalyticsEventService
     participant F as FeatureFlagService
+    participant P as ProgramService
     V->>A: currentHolder()
     V->>A: accountsFor(holder)
     V->>A: totalBalance(holder)
@@ -38,19 +41,26 @@ sequenceDiagram
     V->>F: showWelcomeBanner()
     V->>V: balanceHero, then accountsSection
     V->>F: showAccountCount(), showAccountNumberOnDashboard(), allowAccountNumberReveal()
+    V->>F: showAccountPrograms()
+    opt showAccountPrograms on
+        V->>P: evaluationsFor(holder)
+    end
     V->>V: add reveal-all toolbar if any AccountNumberDisplay exists
+    V->>V: add program notice if any program has unmet rules
 ```
 
 The page is assembled top to bottom as:
 
 1. **Welcome banner** (only when `showWelcomeBanner` is on, default off). A navy strip reading "Hi <first name> - you're viewing an early preview of the redesigned dashboard." The first name is `holder.getFullName().split(" ")[0]`.
-2. **Reveal-all toolbar** (only when at least one `AccountNumberDisplay` was created). A right-aligned tertiary button labelled "Show account numbers" or "Hide account numbers". The hero and accounts section are built before this check so the view knows whether the toolbar has anything to control.
-3. **Balance hero.** Left side: "Total assets" eyebrow, the sum from `totalBalance` formatted with `NumberFormat.getCurrencyInstance(Locale.US)`, and "Across N accounts". Right side: "Account holder" with the full name and, if the holder has any accounts, a "Primary account" number line for `accounts.get(0)`.
-4. **Your accounts.** The "Your accounts" heading, then (only when `showAccountCount` is on, default off) a muted line reading "You have N accounts", or "You have 1 account" when the holder has one account, then a wrapping `FlexLayout` of `AccountCard`s. N is `accounts.size()` of the list the constructor already loaded, so the line costs no extra query. The text comes from the package-private `DashboardView.accountCountSummary(int)`, and the line's `Span` has the CSS class `account-count-summary`.
+2. **Reveal-all toolbar** (only when at least one `AccountNumberDisplay` was created). A right-aligned tertiary button labelled "Show account numbers" or "Hide account numbers". The hero, accounts section and programs section are built before this check so the view knows whether the toolbar has anything to control and whether the program notice is needed.
+3. **Program notice** (only when `showAccountPrograms` is on and at least one program has an unmet rule). A full-width notice with CSS class `program-notice` and `role="status"`, reading "Some of your program requirements aren't met. The details are under Your programs below. Your accounts and balances are not affected."
+4. **Balance hero.** Left side: "Total assets" eyebrow, the sum from `totalBalance` formatted with `NumberFormat.getCurrencyInstance(Locale.US)`, and "Across N accounts". Right side: "Account holder" with the full name and, if the holder has any accounts, a "Primary account" number line for `accounts.get(0)`.
+5. **Your accounts.** The "Your accounts" heading, then (only when `showAccountCount` is on, default off) a muted line reading "You have N accounts", or "You have 1 account" when the holder has one account, then a wrapping `FlexLayout` of `AccountCard`s. N is `accounts.size()` of the list the constructor already loaded, so the line costs no extra query. The text comes from the package-private `DashboardView.accountCountSummary(int)`, and the line's `Span` has the CSS class `account-count-summary`.
+6. **Your programs** (only when `showAccountPrograms` is on, default off). A section with CSS class `programs-section` under a "Your programs" heading, holding one `ProgramCard` per program in a wrapping `FlexLayout`. With no programs it shows "You're not part of any programs." (class `programs-none`). If the `programs` breaker is open it shows "Programs can't be shown right now. Please try again later." (class `programs-unavailable`), no notice is added, and the rest of the dashboard still renders. When the flag is off, `ProgramService` is never called. See [Account programs](account-programs.md).
 
 ### Primary account
 
-The primary account is the first account returned by `AccountRepository.findByHolderIdOrderByAccountTypeAscIdAsc`. `account_type` is stored as a string (`@Enumerated(EnumType.STRING)`), so `CHECKING` sorts before `SAVINGS`, then by ID. For the seeded holder this is "Everyday Checking". The line is always shown, regardless of `showAccountNumberOnDashboard`.
+The primary account is the first account returned by `AccountRepository.findByHolderIdOrderByAccountTypeAscIdAsc`. `account_type` is stored as a string (`@Enumerated(EnumType.STRING)`), so `CHECKING` sorts before `SAVINGS`, then by ID. For the seeded holder Jordan Ellis this is "Everyday Checking"; for Riley Chen it is "Youth Savings", the only account. The line is always shown, regardless of `showAccountNumberOnDashboard`.
 
 ### Account cards
 
@@ -76,8 +86,8 @@ The primary account line and the checking card are two separate displays for the
 ## Integration points
 
 - **Analytics:** one `dashboard.viewed` event per view construction, with attribute `accountCount`. See [Analytics](../systems/analytics.md).
-- **Resilience:** every `AccountService` repository call runs inside the `accounts` circuit breaker. An open breaker during construction surfaces as an unhandled `ServiceUnavailableException`, which `GlobalErrorHandler` tracks. See [Resilience](../systems/resilience.md).
-- **Flags:** `showWelcomeBanner`, `showAccountCount`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal`. See [Feature flags](feature-flags.md).
+- **Resilience:** every `AccountService` repository call runs inside the `accounts` circuit breaker. An open `accounts` breaker during construction surfaces as an unhandled `ServiceUnavailableException`, which `GlobalErrorHandler` tracks. The `programs` breaker is separate: the programs section catches its `ServiceUnavailableException` and shows a message instead. See [Resilience](../systems/resilience.md).
+- **Flags:** `showWelcomeBanner`, `showAccountCount`, `showAccountNumberOnDashboard`, `allowAccountNumberReveal`, `showAccountPrograms`. See [Feature flags](feature-flags.md).
 - **Theme:** colors come from `--mb-*` CSS variables in `src/main/frontend/themes/mockingbird/styles.css`, so dark mode applies without code in the view. See [UI](../systems/ui.md).
 
 ## Entry points for modification
@@ -88,16 +98,18 @@ The primary account line and the checking card are two separate displays for the
 
 ## Testing
 
-`qa/tests/dashboard.spec.ts` asserts the greeting, "Total assets", "Your accounts" and all three seeded account names after sign-in, then clicks into Everyday Checking. The eye-toggle test checks that the per-card eye reveals without navigating and that "Show all account numbers" / "Hide all account numbers" reveal and re-mask every number. `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` builds the view with a mocked `AccountService` and checks the `showAccountCount` line: the singular and plural text, a count that needs no `AccountService` calls beyond the constructor's usual `currentHolder`, `accountsFor` and `totalBalance`, and no line at all when the flag is off. The rest of the view has no Java unit test.
+`qa/tests/dashboard.spec.ts` asserts the greeting, "Total assets", "Your accounts" and all three seeded account names after sign-in, then clicks into Everyday Checking. The eye-toggle test checks that the per-card eye reveals without navigating and that "Show all account numbers" / "Hide all account numbers" reveal and re-mask every number. `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` builds the view with a mocked `AccountService` and `ProgramService`. It checks the `showAccountCount` line (the singular and plural text, a count that needs no `AccountService` calls beyond the constructor's usual `currentHolder`, `accountsFor` and `totalBalance`, and no line at all when the flag is off) and the `showAccountPrograms` branches: no `ProgramService` call and no section when off, one card per program with the notice when a rule is unmet, no notice when every rule is met, the "none" message, and the "unavailable" message with the account cards still present. `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java` covers the card itself. The rest of the view has no Java unit test.
 
 ## Key source files
 
 | File | Purpose |
 | --- | --- |
-| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Route, hero, toolbar, accounts grid |
+| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Route, hero, toolbar, program notice, accounts grid, programs section |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | Program tile and notice |
+| `src/main/java/com/mockingbirdbank/service/ProgramService.java` | Program evaluation |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountCard.java` | Account tile |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number with eye button |
 | `src/main/java/com/mockingbirdbank/service/AccountService.java` | Holder, accounts, total, bulk reveal |
 | `src/main/java/com/mockingbirdbank/repository/AccountRepository.java` | `findByHolderIdOrderByAccountTypeAscIdAsc` |
-| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Unit test for the account count line |
+| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Unit tests for the account count line and the programs section |
 | `qa/tests/dashboard.spec.ts` | Browser test |

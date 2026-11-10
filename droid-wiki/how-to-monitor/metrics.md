@@ -40,7 +40,7 @@ Attributes such as `accountId` and `username` are not tags; they only go to the 
 
 ### resilience4j.circuitbreaker.*
 
-`src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java` binds the circuit breaker registry with `TaggedCircuitBreakerMetrics`. Every meter is tagged `name=accounts` or `name=transactions`.
+`src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java` binds the circuit breaker registry with `TaggedCircuitBreakerMetrics`. Every meter is tagged `name=accounts`, `name=transactions` or `name=programs`.
 
 | Meter | Use it for |
 | --- | --- |

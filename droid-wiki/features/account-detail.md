@@ -2,7 +2,7 @@
 
 Active contributors: ajpahl1008 (AJ Pahl)
 
-The account detail page at `/accounts/{id}` shows one account's header, current balance, and full transaction history, newest first. It is reached by clicking an account card on the [dashboard](dashboard.md).
+The account detail page at `/accounts/{id}` shows one of the signed-in holder's accounts: its header, current balance, and full transaction history, newest first. With the `showAccountPrograms` flag on it also shows the program the account takes part in. It is reached by clicking an account card on the [dashboard](dashboard.md) or an account link on a program card.
 
 ## Purpose
 
@@ -13,10 +13,12 @@ Let the holder read every transaction on one account. The layout follows the "Ac
 | Class | File | Role |
 | --- | --- | --- |
 | `AccountDetailView` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | The route. Implements `HasUrlParameter<Long>` and builds the page in `setParameter`. |
-| `AccountService.requireAccount` | `src/main/java/com/mockingbirdbank/service/AccountService.java` | Loads the account by ID or throws `IllegalArgumentException`. |
+| `AccountService.requireAccount` | `src/main/java/com/mockingbirdbank/service/AccountService.java` | Loads one of the signed-in holder's own accounts by ID. Throws `IllegalArgumentException` for a missing account and for another holder's account alike. |
 | `TransactionService.forAccount` | `src/main/java/com/mockingbirdbank/service/TransactionService.java` | Returns the account's transactions ordered by `postedAt` descending, inside the `transactions` circuit breaker. |
 | `TransactionRepository` | `src/main/java/com/mockingbirdbank/repository/TransactionRepository.java` | `findByAccountIdOrderByPostedAtDesc`. |
 | `AccountNumberDisplay` | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number with eye button in the header. See [Account number reveal](account-number-reveal.md). |
+| `ProgramService.evaluationFor` | `src/main/java/com/mockingbirdbank/service/ProgramService.java` | The evaluated program the account takes part in, if any, inside the `programs` circuit breaker. See [Account programs](account-programs.md). |
+| `ProgramCard` | `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | The program card shown in the "Program" section. |
 | `Transaction` | `src/main/java/com/mockingbirdbank/model/Transaction.java` | Signed `amount`; `isCredit()` is true when positive. |
 
 ## How it works
@@ -28,20 +30,25 @@ sequenceDiagram
     participant B as Browser
     participant V as AccountDetailView
     participant A as AccountService
+    participant P as ProgramService
     participant T as TransactionService
     participant E as AnalyticsEventService
     B->>V: navigate /accounts/7
     V->>A: requireAccount 7
-    alt no such account
+    alt no such account, or another holder's account
         A-->>V: IllegalArgumentException
         V->>E: trackError account.viewed not_found
         V-->>B: NotFoundException, Vaadin not-found page
-    else found
+    else the signed-in holder's account
         A-->>V: Account
         V->>E: track account.viewed accountId
+        opt showAccountPrograms on
+            V->>P: evaluationFor account
+            P-->>V: the account's program, if any
+        end
         V->>T: forAccount 7
         T-->>V: transactions newest first
-        V-->>B: back link, header, grid
+        V-->>B: back link, header, program section, grid
     end
 ```
 
@@ -51,7 +58,8 @@ sequenceDiagram
 
 1. **Back link.** An `Anchor` to `accounts` labelled "← Back to accounts".
 2. **Header.** Left: display name, then the account number and "· Opened <openedAt>". The number is an `AccountNumberDisplay` with prefix "Account " when `allowAccountNumberReveal` is on (default), otherwise a plain masked `Span`. `openedAt` is a `LocalDate` concatenated directly, so it renders in ISO form (for the seeded checking account, `2021-03-12`), unlike the grid dates. Right: "Current balance" and the balance in USD.
-3. **Transaction grid.** A Vaadin `Grid<Transaction>` with `setAllRowsVisible(true)` (no inner scrolling):
+3. **Program section** (only when `showAccountPrograms` is on, default off). A muted "Program" label in a section with CSS class `account-program`, followed by the account's `ProgramCard`, or "This account isn't part of a program." (class `program-none`). If the `programs` breaker is open, it shows "Programs can't be shown right now. Please try again later." (class `programs-unavailable`) and the rest of the page still renders. When the flag is off, no program is evaluated. See [Account programs](account-programs.md).
+4. **Transaction grid.** A Vaadin `Grid<Transaction>` with `setAllRowsVisible(true)` (no inner scrolling):
 
 | Column | Source | Format |
 | --- | --- | --- |
@@ -64,28 +72,28 @@ Amounts are signed (negative is a debit), so debits render with a minus sign fro
 
 ### Not-found handling
 
-`requireAccount` throws `IllegalArgumentException("No such account: …")` for an unknown ID. The view catches it, records `account.viewed` with outcome error and reason `not_found` (attribute `accountId`), and throws Vaadin's `NotFoundException`, which renders Vaadin's standard not-found response. A non-numeric ID such as `/accounts/abc` fails Vaadin's `Long` parameter conversion before `setParameter` runs, so it is not tracked.
+`requireAccount` throws `IllegalArgumentException("No such account: …")` for an unknown ID and for an account that belongs to another holder. The view catches it, records `account.viewed` with outcome error and reason `not_found` (attribute `accountId`), and throws Vaadin's `NotFoundException`, which renders Vaadin's standard not-found response. A non-numeric ID such as `/accounts/abc` fails Vaadin's `Long` parameter conversion before `setParameter` runs, so it is not tracked.
 
-### No ownership check
+### Ownership
 
-`requireAccount` loads any account by ID. It does not compare the account's holder with the signed-in holder, unlike `revealAccountNumber`. A signed-in user who types another holder's account ID would see that account's balance and transactions; only the full-number reveal would be refused. With a single seeded holder this is not reachable in the demo data, but it matters as soon as a second holder exists. See [Security](../security.md).
+`requireAccount` resolves `currentHolder()`, loads the account by ID, and keeps it only if `isOwnedBy` matches the signed-in holder, the same comparison `revealAccountNumber` uses. Another holder's account therefore gets the same not-found page as a missing one, so the page neither shows it nor reveals that the ID exists. `TransactionService.forAccount` has no check of its own, but this view calls it only after `requireAccount` has returned the account. See [Security](../security.md#account-detail-ownership-check).
 
 ## Integration points
 
 - **Analytics:** `account.viewed` (success, `accountId`) and `account.viewed` / `not_found`. See [Analytics](../systems/analytics.md).
-- **Resilience:** `requireAccount` runs inside the `accounts` breaker and `forAccount` inside the `transactions` breaker. An open breaker throws `ServiceUnavailableException`, which this view does not catch, so it reaches `GlobalErrorHandler`. See [Resilience](../systems/resilience.md).
-- **Flags:** `allowAccountNumberReveal` only. `showAccountNumberOnDashboard` does not apply here. See [Feature flags](feature-flags.md).
+- **Resilience:** `requireAccount` (including its `currentHolder()` lookup) runs inside the `accounts` breaker and `forAccount` inside the `transactions` breaker. An open `accounts` or `transactions` breaker throws `ServiceUnavailableException`, which this view does not catch, so it reaches `GlobalErrorHandler`. An open `programs` breaker is caught in the program section. See [Resilience](../systems/resilience.md).
+- **Flags:** `allowAccountNumberReveal` and `showAccountPrograms`. `showAccountNumberOnDashboard` does not apply here. See [Feature flags](feature-flags.md).
 - **Persistence:** `Transaction.account` is a `@ManyToOne`; the grid only reads scalar columns. See [Persistence](../systems/persistence.md).
 
 ## Entry points for modification
 
-- Add an ownership check: compare `account.getHolder().getId()` with `currentHolder().getId()` in `AccountService.requireAccount` (or a new method) and treat a mismatch like not-found, the same way `revealAccountNumber` does.
+- Load anything else per account only after `requireAccount` has returned, as the program section and `forAccount` do, so the ownership check stays in front of it.
 - New grid column: add an `addColumn` call in `transactionTable`.
 - Paging: `forAccount` returns the whole list; large histories would need a pageable repository method and a lazy `DataProvider`.
 
 ## Testing
 
-- `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java`: `requireAccountThrowsForUnknownId`, `requireAccountReturnsMatchFromRepository`.
+- `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java`: `requireAccountThrowsForUnknownId`, `requireAccountReturnsSignedInHoldersOwnAccount`, `requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne`.
 - `src/test/java/com/mockingbirdbank/service/TransactionServiceTest.java`: `forAccount` delegates to the ordered repository query.
 - `qa/tests/dashboard.spec.ts`: clicks Everyday Checking, expects a URL matching `/accounts/.+` and the seeded "Trader Joe's" and "Direct Deposit - Bespin Engineering" rows.
 
@@ -93,8 +101,10 @@ Amounts are signed (negative is a debit), so debits render with a minus sign fro
 
 | File | Purpose |
 | --- | --- |
-| `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Route, header, grid, not-found handling |
-| `src/main/java/com/mockingbirdbank/service/AccountService.java` | `requireAccount` |
+| `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Route, header, program section, grid, not-found handling |
+| `src/main/java/com/mockingbirdbank/service/AccountService.java` | Owner-only `requireAccount` |
+| `src/main/java/com/mockingbirdbank/service/ProgramService.java` | `evaluationFor` |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | Program card |
 | `src/main/java/com/mockingbirdbank/service/TransactionService.java` | `forAccount` with `transactions` breaker |
 | `src/main/java/com/mockingbirdbank/repository/TransactionRepository.java` | Ordered query |
 | `src/main/java/com/mockingbirdbank/model/Transaction.java` | Signed amount, `isCredit()` |

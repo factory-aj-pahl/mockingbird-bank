@@ -10,10 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.mockingbirdbank.config.DataInitializer;
+import com.mockingbirdbank.model.Account;
 import com.mockingbirdbank.model.AccountHolder;
+import com.mockingbirdbank.model.AppUser;
+import com.mockingbirdbank.model.ProgramType;
 import com.mockingbirdbank.repository.AccountHolderRepository;
 import com.mockingbirdbank.repository.AccountRepository;
-import java.util.List;
+import com.mockingbirdbank.repository.AppUserRepository;
+import com.mockingbirdbank.service.ProgramService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,6 +51,10 @@ class ApplicationSmokeTest {
 
     @Autowired private AccountRepository accountRepository;
 
+    @Autowired private AppUserRepository appUserRepository;
+
+    @Autowired private ProgramService programService;
+
     @Test
     void healthEndpointReportsUp() throws Exception {
         mockMvc.perform(get("/actuator/health"))
@@ -67,14 +75,54 @@ class ApplicationSmokeTest {
     }
 
     @Test
-    void dataInitializerSeedsOneHolderWithThreeAccounts() {
-        List<AccountHolder> holders = holderRepository.findAll();
-
-        assertThat(holders).hasSize(1);
+    void dataInitializerSeedsAnAdultAndAYouthHolderWithTheirAccounts() {
+        assertThat(holderRepository.findAll()).hasSize(2);
         assertThat(
                         accountRepository.findByHolderIdOrderByAccountTypeAscIdAsc(
-                                holders.get(0).getId()))
+                                holderFor(DataInitializer.DEV_USERNAME).getId()))
                 .hasSize(3);
+        assertThat(
+                        accountRepository.findByHolderIdOrderByAccountTypeAscIdAsc(
+                                holderFor(DataInitializer.YOUTH_USERNAME).getId()))
+                .hasSize(1);
+    }
+
+    @Test
+    void seededHoldersEachTakePartInOneProgramThatMeetsItsRules() {
+        assertThat(programService.evaluationsFor(holderFor(DataInitializer.DEV_USERNAME)))
+                .singleElement()
+                .satisfies(
+                        regular -> {
+                            assertThat(regular.programType()).isEqualTo(ProgramType.REGULAR);
+                            assertThat(regular.accounts())
+                                    .extracting(Account::getDisplayName)
+                                    .containsExactly("Everyday Checking", "High-Yield Savings");
+                            assertThat(regular.unmetRules()).isEmpty();
+                        });
+        assertThat(programService.evaluationsFor(holderFor(DataInitializer.YOUTH_USERNAME)))
+                .singleElement()
+                .satisfies(
+                        youth -> {
+                            assertThat(youth.programType()).isEqualTo(ProgramType.YOUTH_SAVINGS);
+                            assertThat(youth.accounts())
+                                    .extracting(Account::getDisplayName)
+                                    .containsExactly("Youth Savings");
+                            assertThat(youth.unmetRules()).isEmpty();
+                        });
+    }
+
+    @Test
+    void seededYouthUserCanLogIn() throws Exception {
+        mockMvc.perform(
+                        formLogin()
+                                .user(DataInitializer.YOUTH_USERNAME)
+                                .password(DataInitializer.DEV_PASSWORD_DEFAULT))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"));
+    }
+
+    private AccountHolder holderFor(String username) {
+        return appUserRepository.findByUsername(username).map(AppUser::getHolder).orElseThrow();
     }
 
     @Test

@@ -6,7 +6,7 @@ Instructions for AI coding agents (and humans) working in this repository.
 
 Mockingbird Bank - a read-only account dashboard SPA. Spring Boot 4 backend with a
 Vaadin 25 (Flow + React) frontend, backed by PostgreSQL. There is no public
-registration; it seeds one demo account holder on first run (see
+registration; it seeds two demo account holders on first run (see
 [Demo login](#demo-login-local-dev-only) below).
 
 ## Tech stack
@@ -23,8 +23,9 @@ registration; it seeds one demo account holder on first run (see
   JDK 21; install one via sdkman/homebrew/Corretto if `./gradlew -version` can't
   find one).
 - Docker, running locally - required for the Testcontainers-backed integration
-  tests (`ApplicationSmokeTest`, `AccountTransactionQueryPerformanceTest`), which
-  spin up a throwaway `postgres:16-alpine` container per test class.
+  tests (`ApplicationSmokeTest`, `AccountTransactionQueryPerformanceTest`,
+  `ProgramMigrationTest`), which spin up a throwaway `postgres:16-alpine` container
+  per test class.
 - A reachable PostgreSQL instance if you want to run the app itself (`bootRun`);
   not required just to build or run the unit/integration test suite.
 
@@ -101,12 +102,17 @@ Postgres, wait for it, then `bootRun`):
 
 ### Demo login (local/dev only)
 
-On an empty database, `DataInitializer` seeds one account holder, a matching
-login, and a few sample accounts/transactions so the dashboard has something to
-show:
+On an empty database, `DataInitializer` seeds two account holders, each with a matching login
+and sample accounts/transactions, so the dashboard has something to show:
 
-- Username: `jordan.ellis`
-- Password: `mockingbird` (override via the `MOCKINGBIRD_DEV_PASSWORD` env var)
+- `jordan.ellis` - Jordan Ellis, an adult with three accounts. Everyday Checking and High-Yield
+  Savings take part in a Regular program; Vacation Savings is in no program.
+- `riley.chen` - Riley Chen, a customer under 18 (15 on the day the database is seeded) with one
+  savings account in a Youth Savings program.
+- Password for both: `mockingbird` (override via the `MOCKINGBIRD_DEV_PASSWORD` env var)
+
+`DataInitializer` only runs while `account_holder` is empty, so a database seeded by an older
+build keeps its old data. Drop it (`docker compose down -v`) to get the current seed.
 
 ## Local Kubernetes (k3d)
 
@@ -244,9 +250,11 @@ Override one per-environment with a `MOCKINGBIRD_FEATURE_FLAGS_<NAME>` env var (
 binding maps it automatically) - no code change or redeploy needed, just a different value for
 that variable (e.g. in a k8s manifest or `docker run -e`). `FeatureFlagService` is the typed,
 call-site-facing API (`showAccountNumberOnDashboard()`, `showWelcomeBanner()`,
-`allowAccountNumberReveal()`, `showBuildVersion()`, `showAccountCount()`); `DashboardView`,
-`AccountCard`, `AccountDetailView`, and `MainLayout` use it to gate small, genuinely optional
-pieces of UI.
+`allowAccountNumberReveal()`, `showBuildVersion()`, `showAccountCount()`,
+`showAccountPrograms()`); `DashboardView`, `AccountCard`, `AccountDetailView`, and `MainLayout`
+use it to gate small, genuinely optional pieces of UI.
+`showAccountPrograms` (default off) shows the program sections described under
+[Account programs](#account-programs).
 `showBuildVersion` (the running version in the top bar - see [Build version](#build-version))
 deliberately defaults to **on**, an exception to the "default matches today's behavior" rule; turn
 it off per environment with `MOCKINGBIRD_FEATURE_FLAGS_SHOW_BUILD_VERSION=false`.
@@ -259,6 +267,34 @@ reveal all of the signed-in holder's accounts in one call. Current values are
 visible read-only at `/actuator/featureflags` (`FeatureFlagsEndpoint`) for ops visibility. Add a
 new flag by adding one field to `FeatureFlagsProperties` (with a default matching current
 behavior) and one accessor on `FeatureFlagService`.
+
+## Account programs
+
+A customer's accounts can take part in a program, and the app shows whether each program's rules
+are met. Programs exist only as seed data (`DataInitializer`); there is no UI to join or leave one.
+
+- **Schema** (`V2__account_programs.sql`): `program_participation` holds one row per program a
+  holder takes part in (`REGULAR` or `YOUTH_SAVINGS`); `account.program_participation_id` puts
+  an account in at most one program; `account.currency` is an ISO code (existing rows are `USD`);
+  `account_holder.date_of_birth` is nullable. A composite foreign key on
+  `(program_participation_id, holder_id)` stops an account from joining another customer's
+  program. Existing accounts are not backfilled into any program.
+- **Rules** (`ProgramService`): Regular needs exactly one checking and exactly one savings
+  account, with the savings balance in USD and over $100.00 (no currency conversion). Youth
+  Savings needs exactly one savings account, no checking account, and a customer under 18: the
+  18th birthday is the first ineligible day, and a missing or future date of birth fails. Youth
+  Savings has no minimum balance.
+- **Business date**: ages use today's date in America/New_York (the `Clock` bean in
+  `BusinessClockConfig`), not the server's time zone. Tests pass a fixed date or `Clock` instead.
+- **Read-only**: rules are evaluated every time a page asks for them. An unmet rule only
+  produces messages ("Requirements not met" on the program card, one line per unmet rule, and a
+  notice at the top of the dashboard); nothing changes an account, a balance or a program.
+- **UI** (behind `showAccountPrograms`, default off): a "Your programs" section on the dashboard
+  (`ProgramCard`) and a "Program" section on each account page. Account pages are owner-only:
+  `AccountService.requireAccount` treats another customer's account ID as not found.
+- **Currency**: only the Regular rule reads `account.currency`. Balances and the dashboard total
+  are still shown as US dollars, as before. Every seeded and migrated account is USD, so a non-USD
+  account can only come from hand-written SQL, and the app does not convert or relabel it.
 
 ## Build version
 
@@ -490,8 +526,9 @@ step needed.
 
 ## Observability & resilience
 
-- **Circuit breakers**: `AccountService`/`TransactionService` wrap their repository calls with a
-  named Resilience4j circuit breaker each (`"accounts"`/`"transactions"`,
+- **Circuit breakers**: `AccountService`/`TransactionService`/`ProgramService` wrap their
+  repository calls with a named Resilience4j circuit breaker each
+  (`"accounts"`/`"transactions"`/`"programs"`,
   `com.mockingbirdbank.resilience.ResilienceConfig`) - 50% failure threshold over a sliding window
   of 10 calls, minimum 10 calls before it can trip, 10s wait before a half-open trial. Once open,
   further calls fail immediately with `ServiceUnavailableException` instead of piling up waiting
@@ -564,7 +601,7 @@ src/main/java/com/mockingbirdbank/
   config/                    Startup seeding (DataInitializer)
   model/                     JPA entities (Account, AccountHolder, Transaction, AppUser, ...)
   repository/                Spring Data JPA repositories
-  service/                    Application services (AccountService, TransactionService)
+  service/                    Application services (AccountService, TransactionService, ProgramService)
   security/                   Spring Security + Vaadin security wiring
   analytics/                    Product-event/error tracking (AnalyticsEventService)
   resilience/                    Circuit breakers around repository calls (ResilienceConfig)

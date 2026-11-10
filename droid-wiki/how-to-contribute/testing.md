@@ -1,6 +1,6 @@
 # Testing
 
-The suite has 17 JUnit classes (60 test methods) under `src/test/java/com/mockingbirdbank/`, mirroring the main packages, plus a 4-test Playwright suite in `qa/` that drives a real browser. `./gradlew test` runs the JUnit side and needs Docker for the Testcontainers-backed classes.
+The suite has 22 JUnit classes (98 test methods) under `src/test/java/com/mockingbirdbank/`, mirroring the main packages, plus a 4-test Playwright suite in `qa/` that drives a real browser. `./gradlew test` runs the JUnit side and needs Docker for the Testcontainers-backed classes.
 
 ## Test layers
 
@@ -20,14 +20,15 @@ Most classes are plain JUnit 5 or `@ExtendWith(MockitoExtension.class)` tests th
 
 ### Integration tests
 
-Two classes boot the full Spring context with `@SpringBootTest` against a real `postgres:16-alpine` started by Testcontainers (`@Testcontainers`, `@Container @ServiceConnection`). Flyway migrates the empty container database and `DataInitializer` seeds it, as in a real first start.
+Two classes boot the full Spring context with `@SpringBootTest` against a real `postgres:16-alpine` started by Testcontainers (`@Testcontainers`, `@Container @ServiceConnection`). Flyway migrates the empty container database and `DataInitializer` seeds it, as in a real first start. A third, `ProgramMigrationTest`, uses Testcontainers without Spring.
 
-- `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java` uses MockMvc to check `/actuator/health`, that `/actuator/info` is public and limited to build and git fields, that seeding created one holder with three accounts, that `/accounts` redirects anonymous users to `/login`, and that form login succeeds or fails as expected.
+- `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java` uses MockMvc to check `/actuator/health`, that `/actuator/info` is public and limited to build and git fields, that seeding created two holders (three accounts for `jordan.ellis`, one for `riley.chen`), that each seeded holder takes part in one program whose rules are met, that `/accounts` redirects anonymous users to `/login`, and that form login succeeds or fails as expected for both seeded users.
 - `src/test/java/com/mockingbirdbank/service/AccountTransactionQueryPerformanceTest.java` is the N+1 guard. It enables Hibernate statistics, seeds 6 accounts with 2 transactions each, clears the session, loads the accounts and touches every `transactions` collection, then asserts fewer than 6 prepared statements ran. Removing `@BatchSize` from `Account.transactions` makes it fail. See [Persistence](../systems/persistence.md).
+- `src/test/java/com/mockingbirdbank/ProgramMigrationTest.java` drives Flyway directly (through the `flyway-core` test dependency) against its own `postgres:16-alpine`. It migrates a fresh schema to V1, inserts a holder and an account, migrates on, and checks the account is `USD` with no program. It also checks that the database rejects linking an account to another customer's program (SQLSTATE `23503`) and rejects an unknown program type or a lower-case currency code (`23514`).
 
 ### Circuit breaker behavior
 
-`src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` builds `AccountService` and `TransactionService` with a real `CircuitBreakerRegistry.of(ResilienceConfig.defaultConfig())` and a repository mock that always throws `DataAccessResourceFailureException`. The first 10 calls reach the repository; the 11th fails fast with `ServiceUnavailableException` and the repository call count stays at 10. It does not test the half-open recovery after 10 seconds. See [Resilience](../systems/resilience.md).
+`src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` builds `AccountService` and `TransactionService` with a real `CircuitBreakerRegistry.of(ResilienceConfig.defaultConfig())` and a repository mock that always throws `DataAccessResourceFailureException`. It drives the `accounts` breaker through `accountsFor(holder)` and the `transactions` breaker through `forAccount`. The first 10 calls reach the repository; the 11th fails fast with `ServiceUnavailableException` and the repository call count stays at 10. It does not test the half-open recovery after 10 seconds. See [Resilience](../systems/resilience.md).
 
 ### The login smoke test stops early on purpose
 
@@ -90,11 +91,13 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 
 | Class | Kind | Covers |
 | --- | --- | --- |
-| `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java` | Integration | Context boot, health, info, seeding, login redirect, form login |
+| `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java` | Integration | Context boot, health, info, seeding of both holders and their programs, login redirect, form login for both users |
+| `src/test/java/com/mockingbirdbank/ProgramMigrationTest.java` | Integration, Flyway without Spring | V1 data surviving V2, cross-customer program link rejected, program type and currency checks |
 | `src/test/java/com/mockingbirdbank/service/AccountTransactionQueryPerformanceTest.java` | Integration | N+1 guard on `Account.transactions` |
-| `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | Unit, real breaker | Both breakers trip after 10 failures and fail fast |
-| `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | Mockito | `currentHolder`, `totalBalance`, `requireAccount`, reveal ownership checks, reveal-all, reveal when breaker is open |
+| `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | Unit, real breaker | The `accounts` and `transactions` breakers trip after 10 failures and fail fast |
+| `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | Mockito | `currentHolder`, `totalBalance`, owner-only `requireAccount` (own, unknown, someone else's), reveal ownership checks, reveal-all, reveal when breaker is open |
 | `src/test/java/com/mockingbirdbank/service/TransactionServiceTest.java` | Mockito | `forAccount` delegates to the newest-first query |
+| `src/test/java/com/mockingbirdbank/service/ProgramServiceTest.java` | Mockito, fixed clock | Regular balance boundary (`@ParameterizedTest`), account composition, non-USD savings, Youth Savings age boundaries, New York versus UTC date, missing and future date of birth, leap-day birthday, cross-customer account, open `programs` breaker |
 | `src/test/java/com/mockingbirdbank/model/AccountTest.java` | JUnit | Masking, short or missing numbers, display name fallback |
 | `src/test/java/com/mockingbirdbank/model/TransactionTest.java` | JUnit | `isCredit` for positive, negative and null amounts |
 | `src/test/java/com/mockingbirdbank/security/AppUserDetailsServiceTest.java` | Mockito | User mapping with `ROLE_USER`, unknown user |
@@ -106,14 +109,16 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 | `src/test/java/com/mockingbirdbank/observability/BuildVersionTest.java` | JUnit | Version, commit, branch, display format, missing metadata, startup log |
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagServiceTest.java` | JUnit | Defaults, overrides, `allFlags()` |
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagsEndpointTest.java` | JUnit | Endpoint delegates to the service |
-| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Mockito | `showAccountCount` line: singular, plural, no extra `AccountService` calls, absent when the flag is off |
+| `src/test/java/com/mockingbirdbank/config/BusinessClockConfigTest.java` | JUnit | The business clock runs on America/New_York |
+| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Mockito | `showAccountCount` line (singular, plural, no extra `AccountService` calls, absent when the flag is off) and `showAccountPrograms` (off, cards and notice, no notice when met, none, unavailable) |
+| `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java` | JUnit | Program card links, status pill, unmet rules |
 | `src/test/java/com/mockingbirdbank/config/logging/ScrubbingMessageConverterTest.java` | JUnit | Password, token, Bearer header, card numbers, null and empty input |
 
 ## Known gaps
 
-- `DashboardViewTest` is the only JUnit test in `com.mockingbirdbank.ui`, and it covers only the account count line. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
+- `DashboardViewTest` and `ProgramCardTest` are the only JUnit tests in `com.mockingbirdbank.ui`. `AccountDetailView`, including its program section, has no unit test. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
 - `CircuitBreakerBehaviorTest` checks tripping only, not recovery through half-open, although `AGENTS.md` says it verifies both.
-- Nothing tests that `/accounts/{id}` refuses another holder's account. `AccountService.requireAccount` has no ownership check, so such a test would fail today. See [Security](../security.md).
+- `AccountServiceTest.requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne` covers the ownership check at the service level, but no test drives `/accounts/{id}` for another holder's account end to end, and the Playwright suite signs in only as `jordan.ellis`. See [Security](../security.md#account-detail-ownership-check).
 - The Playwright suite runs only on demand. The post-publish smoke test in `.github/workflows/publish-image.yml` checks only that the image boots and is healthy.
 - The QA script uses `postgres:17.2` while Testcontainers, `docker-compose.yml` and k3d use `postgres:16-alpine`.
 

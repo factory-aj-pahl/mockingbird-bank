@@ -39,6 +39,10 @@ public class FeatureFlagService {
         return properties.isShowAccountCount();
     }
 
+    public boolean showAccountPrograms() {
+        return properties.isShowAccountPrograms();
+    }
+
     /** All known flags and their current values, in declaration order. */
     public Map<String, Boolean> allFlags() {
         Map<String, Boolean> flags = new LinkedHashMap<>();
@@ -47,6 +51,7 @@ public class FeatureFlagService {
         flags.put("allowAccountNumberReveal", allowAccountNumberReveal());
         flags.put("showBuildVersion", showBuildVersion());
         flags.put("showAccountCount", showAccountCount());
+        flags.put("showAccountPrograms", showAccountPrograms());
         return flags;
     }
 }

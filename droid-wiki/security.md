@@ -1,6 +1,6 @@
 # Security
 
-Mockingbird Bank is a read-only dashboard behind Spring Security form login. Every page except the login screen needs a session, credentials are stored as BCrypt hashes apart from customer data, and full account numbers only reach the browser through an ownership-checked reveal. The main open problem is that the account detail page does not check ownership, described under [Known gap](#known-gap-account-detail-has-no-ownership-check).
+Mockingbird Bank is a read-only dashboard behind Spring Security form login. Every page except the login screen needs a session, credentials are stored as BCrypt hashes apart from customer data, full account numbers only reach the browser through an ownership-checked reveal, and the account detail page only opens the signed-in holder's own accounts (see [Account detail ownership check](#account-detail-ownership-check)).
 
 The sign-in flow itself is covered in [Sign-in](features/sign-in.md), and the HTTP surface in [API](api.md). This page is about trust boundaries and controls.
 
@@ -14,7 +14,7 @@ graph LR
     Chain -->|health, info| Actuator[Actuator endpoints]
     Chain -->|signed in| Views[Vaadin views]
     Chain -->|signed in| OpsEndpoints[featureflags and profiling]
-    Views --> Services[AccountService and TransactionService]
+    Views --> Services[AccountService, TransactionService and ProgramService]
     Services --> DB[(PostgreSQL)]
     Services --> Logs[Scrubbed logs and analytics log]
     Secrets[Env vars and k8s Secrets] --> App[Datasource config]
@@ -25,7 +25,7 @@ graph LR
 | --- | --- | --- |
 | Internet or LAN to app | All HTTP | Spring Security filter chain; default deny for anything not matched |
 | Anonymous to signed in | Form login | BCrypt password check, session cookie |
-| Signed-in user to another holder's data | Account IDs in URLs and reveal calls | Ownership check on reveal only; none on account detail |
+| Signed-in user to another holder's data | Account IDs in URLs and reveal calls, program links | Ownership checks on reveal and account detail; owner-only program evaluation; a composite foreign key on program links |
 | App to database | JDBC | Credentials from env vars or k8s Secrets |
 | App to logs | Log messages, analytics events | `ScrubbingMessageConverter` on every message |
 | Contributor to `master` | Pull requests | CI, CodeQL, gitleaks, CODEOWNERS, branch protection |
@@ -81,8 +81,10 @@ Rules from `SecurityConfig.securityFilterChain`:
 | `totalBalance(holder)` | Yes, same |
 | `revealAccountNumbers()` | Yes, only queries the holder's own accounts |
 | `revealAccountNumber(id)` | Yes, explicit `isOwnedBy` check |
-| `requireAccount(id)` | **No** |
-| `TransactionService.forAccount(id)` | **No** |
+| `requireAccount(id)` | Yes, explicit `isOwnedBy` check; another holder's account fails like a missing one |
+| `TransactionService.forAccount(id)` | No check of its own. Its only caller, `AccountDetailView`, calls it after `requireAccount` succeeds |
+| `ProgramService.evaluationsFor(holder)` | Yes, loads the holder's own participations and drops any linked account that `isOwnedBy` rejects |
+| `ProgramService.evaluationFor(account)` | Uses the account's own holder; `AccountDetailView` only passes it an account returned by `requireAccount` |
 
 ## Data separation
 
@@ -107,22 +109,19 @@ Credentials can therefore be changed or audited without touching PII, and a quer
 
 A missing account and someone else's account fail in exactly the same way, with the same exception, message and analytics reason, so the reveal cannot be used to discover which account IDs exist. A successful reveal records an event with `accountId` and `scope`; the number itself is never an event attribute or log argument. The UI drops the number again after 30 seconds, on a second click, or when the component is detached. Details in [Account number reveal](features/account-number-reveal.md).
 
-## Known gap: account detail has no ownership check
+## Account detail ownership check
 
-`AccountDetailView.setParameter` calls `AccountService.requireAccount(accountId)`, which is just `accountRepository.findById` wrapped in the circuit breaker, and then `TransactionService.forAccount(accountId)`, which is `findByAccountIdOrderByPostedAtDesc`. Neither compares the account's holder with `currentHolder()`.
+`AccountDetailView.setParameter` calls `AccountService.requireAccount(accountId)` before it loads anything else. `requireAccount` resolves `currentHolder()`, loads the account with `findById` inside the `accounts` circuit breaker, and keeps it only if `isOwnedBy` matches the holder IDs. A missing account and another holder's account both throw `IllegalArgumentException("No such account: <id>")`. The view turns that into Vaadin's not-found page and records `account.viewed` with reason `not_found`, so the two cases look the same and the page cannot be used to find out which account IDs exist.
 
-**Impact.** This is an insecure direct object reference (IDOR). Any signed-in user can type `/accounts/{id}` with another holder's account ID and see that account's nickname or type, masked number, opening date, current balance, and full transaction history. Account IDs are sequential database identities, so they are easy to guess. The eye button on that page would still refuse to reveal the full number, because the reveal path does check ownership. The outcome also differs (a page renders for a foreign account, a not-found for a missing one), so unlike the reveal, this path does leak which IDs exist.
+`TransactionService.forAccount(accountId)` has no ownership check of its own. Its only caller is `AccountDetailView`, which calls it only after `requireAccount` has returned the account, so it never runs with an unchecked ID today. A new caller must check ownership first, or the check should move into `forAccount`.
 
-**Why it has not bitten yet.** `src/main/java/com/mockingbirdbank/config/DataInitializer.java` seeds a single holder and there is no registration, so today every account belongs to the only user. It becomes exploitable as soon as a second holder exists.
+`isOwnedBy` is package-private in `AccountService`, so `ProgramService` uses the same comparison. The seed creates two holders (see [Persistence](systems/persistence.md#seeding)), so the check applies to the demo data. `AccountServiceTest.requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne` covers the foreign case.
 
-**Suggested fix.**
+`docs/runbooks/error-spike.md` lists "the account-ownership check in `AccountService`" as a possible cause of `account.viewed` errors. That matches the code: a foreign account ID is reported as `not_found`.
 
-1. Add an owned-account lookup in `AccountService`, either by reusing the `revealAccountNumber` pattern (`findById` then `filter(isOwnedBy(..., currentHolder()))`) or by adding a repository method such as `findByIdAndHolderId`.
-2. Throw the same `IllegalArgumentException` for "missing" and "not yours", so `AccountDetailView` keeps turning both into `NotFoundException` and the two cases stay indistinguishable.
-3. Load transactions only after that check succeeds, or give `TransactionService.forAccount` the same guard so it cannot be called with an unchecked ID from a future view.
-4. Add cases to `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` mirroring the existing reveal tests (own account, foreign account, unknown ID).
+### Program links
 
-`docs/runbooks/error-spike.md` already blames `account.viewed` errors on "the account-ownership check in `AccountService`", which describes the intended state rather than the current one.
+An account links to at most one program participation through `account.program_participation_id`. The foreign key in `src/main/resources/db/migration/V2__account_programs.sql` covers `(program_participation_id, holder_id)` and references `program_participation (id, holder_id)`, so the database rejects linking an account to another customer's program. If that constraint were ever bypassed, `ProgramService` still drops any account not owned by the participation's holder from the evaluation, so it is neither shown nor counted. See [Account programs](features/account-programs.md).
 
 ## Log scrubbing
 
@@ -158,12 +157,12 @@ Limits worth knowing:
 | `.env.example` | Template for `runDockerImage.zsh` with the same local values | The real `.env` is gitignored, as the file header says. |
 | `k8s/01-app-db-secret.yaml` | `Secret` `mockingbird-db-credentials` | Go-templated from `k8s/values.yaml`, where `dbPassword` is `<+secrets.getValue("postgres-lab-secret")>`. Harness resolves it from its secret manager at deploy time, so the real password is never in git. See [LAB cluster](deployment/lab-cluster.md). |
 | `k8s/local/kustomization.yaml` | `secretGenerator` `mockingbird-dev-db` | Throwaway credentials for the k3d-only database, labelled LOCAL DEV ONLY. See [Local k3d](deployment/local-k3d.md). |
-| `MOCKINGBIRD_DEV_PASSWORD` | Demo login password | Read by `DataInitializer`; defaults to `mockingbird`. |
+| `MOCKINGBIRD_DEV_PASSWORD` | Demo login password | Read by `DataInitializer` for both seeded logins (`jordan.ellis` and `riley.chen`); defaults to `mockingbird`. |
 | GitHub secrets | `FACTORY_API_KEY`, `FACTORY_WIKI_PR_TOKEN` (optional), `SLACK_ALERTS_WEBHOOK_URL` | Used by the Droid, wiki refresh and alerting workflows. See [Configuration](reference/configuration.md#ci-secrets). |
 
 ### The demo seed
 
-`DataInitializer` runs on every startup and seeds the demo holder, login and accounts whenever `account_holder` is empty. It is not tied to a profile, so it also runs against a fresh LAB or k3d database. Anyone who knows the documented default password can sign in to a new environment unless `MOCKINGBIRD_DEV_PASSWORD` was set before its first start. The password is BCrypt-encoded before saving, and the startup log line names only the username and the env var, never the password. Before commit `00b53d6` it logged the password in plain text. The class Javadoc still says to "swap for a proper migration tool", although Flyway already manages the schema.
+`DataInitializer` runs on every startup and seeds the two demo holders, their logins and accounts whenever `account_holder` is empty. It is not tied to a profile, so it also runs against a fresh LAB or k3d database. Anyone who knows the documented default password can sign in to a new environment unless `MOCKINGBIRD_DEV_PASSWORD` was set before its first start. The password is BCrypt-encoded before saving, and the startup log line names only the usernames and the env var, never the password. Before commit `00b53d6` it logged the password in plain text. The class Javadoc still says to "swap for a proper migration tool", although Flyway already manages the schema.
 
 ## CI and repository controls
 
@@ -189,8 +188,10 @@ Limits worth knowing:
 | --- | --- |
 | `src/main/java/com/mockingbirdbank/security/SecurityConfig.java` | Filter chain, Actuator rules, BCrypt |
 | `src/main/java/com/mockingbirdbank/security/AppUserDetailsService.java` | User lookup, `ROLE_USER` |
-| `src/main/java/com/mockingbirdbank/service/AccountService.java` | `currentHolder`, ownership-checked reveal, unchecked `requireAccount` |
-| `src/main/java/com/mockingbirdbank/service/TransactionService.java` | Unchecked `forAccount` |
+| `src/main/java/com/mockingbirdbank/service/AccountService.java` | `currentHolder`, ownership-checked reveal and `requireAccount`, `isOwnedBy` |
+| `src/main/java/com/mockingbirdbank/service/TransactionService.java` | `forAccount`, which relies on its caller checking ownership |
+| `src/main/java/com/mockingbirdbank/service/ProgramService.java` | Owner-only program evaluation |
+| `src/main/resources/db/migration/V2__account_programs.sql` | Composite foreign key that keeps program links within one customer |
 | `src/main/java/com/mockingbirdbank/model/AppUser.java` | Credentials kept apart from PII |
 | `src/main/java/com/mockingbirdbank/config/logging/ScrubbingMessageConverter.java` | Log redaction |
 | `src/main/resources/logback-spring.xml` | Converter wiring, analytics log retention |

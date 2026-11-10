@@ -18,7 +18,7 @@ Fields holding non-serializable Spring objects in Vaadin components are `transie
 - Lombok `@Getter`, `@Setter` and `@NoArgsConstructor` on every entity, plus one explicit constructor with the required fields. No hand-written accessors.
 - Display logic that depends only on the entity lives on it: `Account.getMaskedNumber()`, `Account.getDisplayName()`, `Transaction.isCredit()`.
 - Any `@OneToMany` that may be iterated across several parents gets `@BatchSize` (see `Account.transactions`). `AccountTransactionQueryPerformanceTest` guards against N+1 queries.
-- Schema changes go in a new Flyway migration (`V2__...`). Never edit a migration that may have run somewhere.
+- Schema changes go in a new Flyway migration (the next is `V3__...`). Never edit a migration that may have run somewhere.
 
 ## Services
 

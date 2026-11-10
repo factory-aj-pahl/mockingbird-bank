@@ -10,10 +10,10 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * One shared tuning for every circuit breaker in this app, each one registered by {@code
- * AccountService}/{@code TransactionService} around its own repository calls (see {@link
- * ServiceUnavailableException}): half of the last 10 calls failing trips it open for 10s (fail fast
- * instead of piling up threads/connections against an already-struggling Postgres), then 3 trial
- * calls in the half-open state decide whether to close again.
+ * AccountService}/{@code TransactionService}/{@code ProgramService} around its own repository calls
+ * (see {@link ServiceUnavailableException}): half of the last 10 calls failing trips it open for
+ * 10s (fail fast instead of piling up threads/connections against an already-struggling Postgres),
+ * then 3 trial calls in the half-open state decide whether to close again.
  *
  * <p>Exposed as a static method - not just inlined into the bean below - so {@code
  * CircuitBreakerBehaviorTest} exercises this exact configuration rather than a separately

@@ -70,6 +70,7 @@ Bound by `src/main/java/com/mockingbirdbank/config/FeatureFlagsProperties.java` 
 | `mockingbird.feature-flags.allow-account-number-reveal` | `MOCKINGBIRD_FEATURE_FLAGS_ALLOW_ACCOUNT_NUMBER_REVEAL` | `true` | Eye buttons and the "Show account numbers" toggle |
 | `mockingbird.feature-flags.show-build-version` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_BUILD_VERSION` | `true` | Version label in the top bar |
 | `mockingbird.feature-flags.show-account-count` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_COUNT` | `false` | Dashboard shows "You have N accounts" under "Your accounts" |
+| `mockingbird.feature-flags.show-account-programs` | `MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_PROGRAMS` | `false` | Dashboard "Your programs" section and unmet-requirements notice, and the "Program" section on account pages. See [Account programs](../features/account-programs.md) |
 
 Each word needs its own underscore in the env var name. Current values are readable at `/actuator/featureflags` after sign-in. Details are in [Feature flags](../features/feature-flags.md).
 
@@ -85,7 +86,7 @@ This property is not in `application.yml`; the default lives only in the `@Value
 
 | Env var | Default | Read in | Effect |
 | --- | --- | --- | --- |
-| `MOCKINGBIRD_DEV_PASSWORD` | `mockingbird` | `src/main/java/com/mockingbirdbank/config/DataInitializer.java` (`System.getenv()`) | Password for the seeded `jordan.ellis` login. Only used when the database is empty at startup |
+| `MOCKINGBIRD_DEV_PASSWORD` | `mockingbird` | `src/main/java/com/mockingbirdbank/config/DataInitializer.java` (`System.getenv()`) | Password for both seeded logins, `jordan.ellis` and `riley.chen`. Only used when the database is empty at startup |
 | `TESTCONTAINERS_HOST_OVERRIDE` | unset | Testcontainers library | Set to `host.docker.internal` in `.devcontainer/docker-compose.yml` so tests inside the dev container reach sibling containers |
 | `HARNESS_JAVA_AGENT` (JVM system property, not env var) | unset | `build.gradle` (`tasks.withType(Test)`) | When set, appended to the test JVM args for Harness CI Test Intelligence |
 

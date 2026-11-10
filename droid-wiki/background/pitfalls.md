@@ -4,15 +4,13 @@ These are the places where a reasonable change in Mockingbird Bank breaks someth
 
 ## Security and data
 
-### /accounts/{id} has no ownership check
+### /accounts/{id} checks ownership in requireAccount
 
-`AccountDetailView.setParameter` calls `AccountService.requireAccount(accountId)`, which is a plain `findById` behind the circuit breaker. Neither it nor `TransactionService.forAccount` checks that the account belongs to the signed-in holder. Any authenticated user who edits the URL can see another holder's balance and transactions. Only `revealAccountNumber` filters by owner.
-
-It is not exploitable today because the seed creates one holder, but it becomes a real IDOR the moment a second login exists. If you add users, fix this first: reuse the `isOwnedBy` check from `revealAccountNumber` and fail with the same not-found response for missing and foreign IDs, so callers cannot probe which IDs exist. See [account detail](../features/account-detail.md#no-ownership-check) and [cleanup opportunities](../cleanup-opportunities.md#bugs-and-gaps).
+`AccountDetailView.setParameter` relies on `AccountService.requireAccount(accountId)` to refuse other holders' accounts. `requireAccount` resolves `currentHolder()`, loads the account, and keeps it only if `isOwnedBy` matches, throwing the same `IllegalArgumentException` for a foreign ID as for a missing one, so the page shows not-found and cannot be used to probe which IDs exist. `TransactionService.forAccount` and `ProgramService.evaluationFor` do not check ownership themselves; they are safe only because the view calls them after `requireAccount` has returned. Keep that order in any new per-account view, or load the account through `requireAccount` first. The seed creates two holders, so a mistake here is visible with the demo data. See [account detail](../features/account-detail.md#ownership) and [Security](../security.md#account-detail-ownership-check).
 
 ### The seed runs on any empty database
 
-`DataInitializer.run` returns early only if `account_holder` already has rows. Point the app at any fresh database, including a shared or LAB one, and it creates the `jordan.ellis` login with the password from `MOCKINGBIRD_DEV_PASSWORD` or the documented default `mockingbird`. There is no profile or flag guarding it. The class Javadoc still says "swap for a proper migration tool before this becomes a shared environment", although Flyway already exists. In any environment someone else can reach, set `MOCKINGBIRD_DEV_PASSWORD` or pre-populate the holder table before first start.
+`DataInitializer.run` returns early only if `account_holder` already has rows. Point the app at any fresh database, including a shared or LAB one, and it creates the `jordan.ellis` and `riley.chen` logins, both with the password from `MOCKINGBIRD_DEV_PASSWORD` or the documented default `mockingbird`. There is no profile or flag guarding it. The class Javadoc still says "swap for a proper migration tool before this becomes a shared environment", although Flyway already exists. In any environment someone else can reach, set `MOCKINGBIRD_DEV_PASSWORD` or pre-populate the holder table before first start.
 
 ### Failed sign-ins log the typed username
 
@@ -28,7 +26,7 @@ That is what happened on the first LAB deploy. The target database (`metamanagem
 
 ### Never edit an applied migration
 
-`src/main/resources/db/migration/V1__init_schema.sql` has been applied to local, k3d and LAB databases. Flyway stores a checksum for each applied script and refuses to start if the file changes. Add a new `V2__...sql` instead. Remember that `scripts/bootstrap-lab-db.sql` mirrors V1 by hand, so a schema change for LAB may need a matching manual step there too. See [persistence](../systems/persistence.md).
+`src/main/resources/db/migration/V1__init_schema.sql` has been applied to local, k3d and LAB databases. Flyway stores a checksum for each applied script and refuses to start if the file changes. Add a new migration with the next version number instead (`V2__account_programs.sql` is the latest, so the next is `V3__...sql`). Remember that `scripts/bootstrap-lab-db.sql` mirrors V1 by hand, so a schema change for LAB may need a matching manual step there too. See [persistence](../systems/persistence.md).
 
 ## Vaadin and Spring Security
 
