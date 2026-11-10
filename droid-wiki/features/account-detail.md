@@ -58,7 +58,7 @@ sequenceDiagram
 
 1. **Back link.** An `Anchor` to `accounts` labelled "← Back to accounts".
 2. **Header.** Left: display name, then the account number and "· Opened <openedAt>". The number is an `AccountNumberDisplay` with prefix "Account " when `allowAccountNumberReveal` is on (default), otherwise a plain masked `Span`. `openedAt` is a `LocalDate` concatenated directly, so it renders in ISO form (for the seeded checking account, `2021-03-12`), unlike the grid dates. Right: "Current balance" and the balance in USD.
-3. **Program section** (only when `showAccountPrograms` is on, default off). A muted "Program" label in a section with CSS class `account-program`, followed by the account's `ProgramCard`, or "This account isn't part of a program." (class `program-none`). If programs can't be read (the `programs` breaker is open, or the database fails before it opens; see `ProgramLookup`), it shows "Programs can't be shown right now. Please try again later." (class `programs-unavailable`) and the rest of the page still renders. When the flag is off, no program is evaluated. See [Account programs](account-programs.md).
+3. **Program section** (only when `showAccountPrograms` is on, default off). A muted "Program" label in a section with CSS class `account-program`, followed by the account's `ProgramCard`, or "This account isn't part of a program." (class `program-none`). If programs can't be read (the `programs` breaker is open, or the program read fails with a database error; see `ProgramLookup`), it shows "Programs can't be shown right now. Please try again later." (class `programs-unavailable`) and the rest of the page still renders. When the flag is off, no program is evaluated. See [Account programs](account-programs.md).
 4. **Transaction grid.** A Vaadin `Grid<Transaction>` with `setAllRowsVisible(true)` (no inner scrolling):
 
 | Column | Source | Format |
@@ -81,7 +81,7 @@ Amounts are signed (negative is a debit), so debits render with a minus sign fro
 ## Integration points
 
 - **Analytics:** `account.viewed` (success, `accountId`) and `account.viewed` / `not_found`, plus `programs.unavailable` (reason the exception's simple class name) when the program section shows the "unavailable" message. See [Analytics](../systems/analytics.md).
-- **Resilience:** `requireAccount` (including its `currentHolder()` lookup) runs inside the `accounts` breaker and `forAccount` inside the `transactions` breaker. An open `accounts` or `transactions` breaker throws `ServiceUnavailableException`, which this view does not catch, so it reaches `GlobalErrorHandler`. An open `programs` breaker, and a database error before it opens, are caught in the program section through `ProgramLookup`. See [Resilience](../systems/resilience.md).
+- **Resilience:** `requireAccount` (including its `currentHolder()` lookup) runs inside the `accounts` breaker and `forAccount` inside the `transactions` breaker. An open `accounts` or `transactions` breaker throws `ServiceUnavailableException`, which this view does not catch, so it reaches `GlobalErrorHandler`. An open `programs` breaker, and a database error from the program read, are caught in the program section through `ProgramLookup`. See [Resilience](../systems/resilience.md).
 - **Flags:** `allowAccountNumberReveal` and `showAccountPrograms`. `showAccountNumberOnDashboard` does not apply here. See [Feature flags](feature-flags.md).
 - **Persistence:** `Transaction.account` is a `@ManyToOne`; the grid only reads scalar columns. See [Persistence](../systems/persistence.md).
 

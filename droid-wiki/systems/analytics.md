@@ -108,12 +108,12 @@ Every `track`/`trackError` call in `src/main`:
 | `dashboard.viewed` | success | `n/a` | `accountCount` | `DashboardView` constructor, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:62` |
 | `account.viewed` | success | `n/a` | `accountId` | `AccountDetailView.setParameter`, `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:72` |
 | `account.viewed` | error | `not_found` | `accountId` | `AccountDetailView.setParameter` when `requireAccount` throws `IllegalArgumentException` (a missing account or another holder's account), `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:68` |
-| `account_number.revealed` | success | `n/a` | `accountId`, `scope=single` | `AccountService.revealAccountNumber`, `src/main/java/com/mockingbirdbank/service/AccountService.java:88` |
-| `account_number.revealed` | success | `n/a` | `scope=all`, `accountCount` | `AccountService.revealAccountNumbers`, `src/main/java/com/mockingbirdbank/service/AccountService.java:101` |
-| `account_number.revealed` | error | `forbidden` | `accountId` | `AccountService.revealAccountNumber` when the account is missing or owned by someone else, `src/main/java/com/mockingbirdbank/service/AccountService.java:82` |
+| `account_number.revealed` | success | `n/a` | `accountId`, `scope=single` | `AccountService.revealAccountNumber`, `src/main/java/com/mockingbirdbank/service/AccountService.java:94` |
+| `account_number.revealed` | success | `n/a` | `scope=all`, `accountCount` | `AccountService.revealAccountNumbers`, `src/main/java/com/mockingbirdbank/service/AccountService.java:107` |
+| `account_number.revealed` | error | `forbidden` | `accountId` | `AccountService.revealAccountNumber` when the account is missing or owned by someone else, `src/main/java/com/mockingbirdbank/service/AccountService.java:88` |
 | `user.login` | success | `n/a` | `username` | `AuthenticationEventListener.onSuccess` |
 | `user.login` | error | exception simple class name, for example `BadCredentialsException` | `username` | `AuthenticationEventListener.onFailure` |
-| `programs.unavailable` | error | exception simple class name: `ServiceUnavailableException` for an open `programs` breaker, otherwise the database exception, for example `DataAccessResourceFailureException` | none | `ProgramLookup.orUnavailable` when the dashboard's or account page's program section shows the "unavailable" message, `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java:51` |
+| `programs.unavailable` | error | exception simple class name: `ServiceUnavailableException` for an open `programs` breaker, otherwise the database exception, for example `DataAccessResourceFailureException` | none | `ProgramLookup.orUnavailable` when the dashboard's or account page's program section shows the "unavailable" message, `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java:52` |
 | `ui.unhandled_exception` | error | exception simple class name | none | `GlobalErrorHandler.handle` |
 
 The reveal event never includes the account number itself. The [account number reveal](../features/account-number-reveal.md) page covers the feature side.

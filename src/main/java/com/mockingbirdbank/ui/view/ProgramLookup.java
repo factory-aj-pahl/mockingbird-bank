@@ -17,16 +17,17 @@ import org.springframework.transaction.TransactionException;
  * the rest of the page still renders.
  *
  * <p>{@link ServiceUnavailableException} alone only covers an open {@code programs} circuit
- * breaker. Before it opens, and on a failed half-open trial, the database error itself arrives:
- * translated by the repository ({@link DataAccessException}), from the {@code @Transactional} proxy
- * around {@code ProgramService} before the breaker sees the call ({@link TransactionException}), or
- * untranslated from Hibernate ({@link PersistenceException}). These types also cover failures that
- * are bugs rather than outages, such as a query against a missing table or a Hibernate mapping
- * error. They get the same fallback, because a programs failure must not take the accounts down
- * with it. Every fallback is tracked as {@code programs.unavailable} with the exception's simple
- * class name as the reason, and the database errors are logged at WARN with their stack trace, so a
- * bug still shows up as an error count. Exceptions outside these types still propagate to {@code
- * GlobalErrorHandler}.
+ * breaker. While the breaker is closed, and on a failed half-open trial, a failing query arrives as
+ * the database error itself: translated by the repository ({@link DataAccessException}) or
+ * untranslated from Hibernate ({@link PersistenceException}). A failed connection arrives as a
+ * {@link TransactionException} from the {@code @Transactional} proxy around {@code ProgramService}
+ * whatever the breaker state, because the proxy opens the connection before the breaker sees the
+ * call. These types also cover failures that are bugs rather than outages, such as a query against
+ * a missing table or a Hibernate mapping error. They get the same fallback, because a programs
+ * failure must not take the accounts down with it. Every fallback is tracked as {@code
+ * programs.unavailable} with the exception's simple class name as the reason, and the database
+ * errors are logged at WARN with their stack trace, so a bug still shows up as an error count.
+ * Exceptions outside these types still propagate to {@code GlobalErrorHandler}.
  */
 final class ProgramLookup {
 

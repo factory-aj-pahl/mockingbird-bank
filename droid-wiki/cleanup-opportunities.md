@@ -14,7 +14,7 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 
 ## Bugs and gaps
 
-**Medium: `ServiceUnavailableException` escapes page construction.** When a breaker is open, the `DashboardView` constructor (`currentHolder`, `accountsFor`, `totalBalance`), `MainLayout`'s constructor and `AccountDetailView.setParameter` do not catch it for the `accounts` and `transactions` breakers, so it reaches `GlobalErrorHandler` and Vaadin's generic error page. Only `AccountNumberDisplay.onToggle` and `DashboardView.toggleAll` show a friendly notification. The program sections handle the separate `programs` breaker, and database errors before it opens, with an inline message (`ProgramLookup`). Fix: catch it in the views (or a shared `HasErrorParameter<ServiceUnavailableException>` error view) and render a "temporarily unavailable" message.
+**Medium: `ServiceUnavailableException` escapes page construction.** When a breaker is open, the `DashboardView` constructor (`currentHolder`, `accountsFor`, `totalBalance`), `MainLayout`'s constructor and `AccountDetailView.setParameter` do not catch it for the `accounts` and `transactions` breakers, so it reaches `GlobalErrorHandler` and Vaadin's generic error page. Only `AccountNumberDisplay.onToggle` and `DashboardView.toggleAll` show a friendly notification. The program sections handle the separate `programs` breaker, and database errors from the program read, with an inline message (`ProgramLookup`). Fix: catch it in the views (or a shared `HasErrorParameter<ServiceUnavailableException>` error view) and render a "temporarily unavailable" message.
 
 **Medium: attempted usernames in the analytics log.** `AuthenticationEventListener.onFailure` (`src/main/java/com/mockingbirdbank/analytics/AuthenticationEventListener.java:30-37`) writes whatever was typed into the username field to `build/logs/analytics-events.log`, kept 30 days by `src/main/resources/logback-spring.xml`. A password typed into the wrong field persists. Fix: drop the username on failure, or log a hash or a "known user" boolean.
 
@@ -30,20 +30,20 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 
 | Priority | Mismatch | File to fix |
 |---|---|---|
-| Medium | `/actuator/metrics/product.events` is described as available, but exposure is `health,info,featureflags,profiling` | `AGENTS.md:290`, `src/main/java/com/mockingbirdbank/analytics/AnalyticsEventService.java:29`, `src/main/resources/application.yml:88`, `src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java:38-40`, `docs/runbooks/error-spike.md:4,10,18-19`. Either expose `metrics` (authenticated) or change the text. |
+| Medium | `/actuator/metrics/product.events` is described as available, but exposure is `health,info,featureflags,profiling` | `AGENTS.md:342`, `src/main/java/com/mockingbirdbank/analytics/AnalyticsEventService.java:29`, `src/main/resources/application.yml:88`, `src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java:38-40`, `docs/runbooks/error-spike.md:4,10,18-19`. Either expose `metrics` (authenticated) or change the text. |
 | Medium | Runbook filters on `tag=event:login` and talks about "`login` errors"; the event is `user.login` | `docs/runbooks/error-spike.md:18,43` |
 | Medium | Runbook points to `SECURITY.md`, which does not exist | `docs/runbooks/error-spike.md:43` |
 | Low | `trackError` Javadoc example uses `account.view_failed`; the code emits `account.viewed` with `outcome=error` | `src/main/java/com/mockingbirdbank/analytics/AnalyticsEventService.java:57` |
 | Low | "Every route except `/actuator/health/**` requires auth"; `/actuator/info` and `/login` are public too | `docs/architecture.md:23-25` |
 | Low | "Vaadin Flow + React"; there are no `.tsx`/`.jsx` files, all views are Java Flow | `AGENTS.md:8,15`, `docs/architecture.md:10` |
-| Low | Business-logic coverage "94-100%" vs "92-100%" | `build.gradle:374` vs `AGENTS.md:203` |
+| Low | Business-logic coverage "94-100%" vs "92-100%" | `build.gradle:377` vs `AGENTS.md:209` |
 | Low | Javadoc says "swap for a proper migration tool"; Flyway is already there, and the seed runs on any empty DB | `src/main/java/com/mockingbirdbank/config/DataInitializer.java:26-32` |
 | Low | Comment points to `k8s/01-postgres-secret.yaml.example`, deleted in `278a4eb` | `src/main/resources/application.yml:7` |
-| Low | `CircuitBreakerBehaviorTest` is said to verify "trip/recover"; it only tests tripping | `AGENTS.md:465` |
+| Low | `CircuitBreakerBehaviorTest` is said to verify "trip/recover"; it only tests tripping | `AGENTS.md:535` |
 | Low | Comment calls `product.events` a "Micrometer registry"; it is a counter in the shared `MeterRegistry` | `src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java:38-40` |
-| Low | Flag overrides need "no code change or redeploy"; they bind at startup, so a restart is needed | `AGENTS.md:229`, `src/main/resources/application.yml:94` |
-| Low | `AccountCard` listed as a `FeatureFlagService` user; `DashboardView` makes that decision | `AGENTS.md:232` |
-| Low | A build without args "reports `unknown`"; the version is actually `0.1.0-unknown` (commit and branch are `unknown`) | `AGENTS.md:263`, `Dockerfile:11` |
+| Low | Flag overrides need "no code change or redeploy"; they bind at startup, so a restart is needed | `AGENTS.md:250`, `src/main/resources/application.yml:94` |
+| Low | `AccountCard` listed as a `FeatureFlagService` user; `DashboardView` makes that decision | `AGENTS.md:254` |
+| Low | A build without args "reports `unknown`"; the version is actually `0.1.0-unknown` (commit and branch are `unknown`) | `AGENTS.md:315`, `Dockerfile:11` |
 | Low | Tracing section does not mention that k3d sets `MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.0` | `AGENTS.md` ("Distributed tracing"), see `k8s/local/kustomization.yaml:42` |
 
 ## Inefficiencies and UX nits
@@ -76,7 +76,7 @@ No unused classes were found.
 
 ## TODO and FIXME markers
 
-There are none in tracked source. Checkstyle's `TodoComment` module (`config/checkstyle/checkstyle.xml:101-106`) would report any as a warning; the only matches for the pattern are that rule and its description in `build.gradle:276` and `AGENTS.md`.
+There are none in tracked source. Checkstyle's `TodoComment` module (`config/checkstyle/checkstyle.xml:101-106`) would report any as a warning; the only matches for the pattern are that rule and its description in `build.gradle:279` and `AGENTS.md`.
 
 ## Complexity hotspots
 
