@@ -93,7 +93,7 @@ Automatic transition from open to half-open is not enabled, so the breaker moves
 
 ## UI handling of ServiceUnavailableException
 
-The account number reveal path and the program sections catch it. The program sections also catch database errors from the program read. A failing query counts toward opening the `programs` breaker; a failed connection does not, because the `@Transactional` proxy around `ProgramService` opens the connection, and throws `CannotCreateTransactionException`, before `protectedCall` runs.
+The account number reveal path and the program sections catch it. The program sections also catch database errors from the program read. A failure inside `protectedCall`, such as a failing query, counts toward opening the `programs` breaker. A connection that can't be taken from the pool does not: the `@Transactional` proxy around `ProgramService` throws `CannotCreateTransactionException` before `protectedCall` runs.
 
 | Where | What it catches | User sees |
 | --- | --- | --- |
