@@ -56,7 +56,7 @@ Vaadin keeps each session's component tree in that pod's memory. A second replic
 
 `protectedCall` in `AccountService` and `TransactionService` wraps only the repository call. The `orElseThrow` for a missing account runs outside it, so a burst of 404s never opens the breaker; only exceptions from the database do. Keep new `orElseThrow`, ownership checks and validation outside `protectedCall`.
 
-A related gap: once a breaker opens, `ServiceUnavailableException` is caught only on the reveal paths (`AccountNumberDisplay.onToggle`, `DashboardView.toggleAll`). The `DashboardView` constructor, `MainLayout`'s `currentHolder()` call and `AccountDetailView.setParameter` let it reach `GlobalErrorHandler`, so the user gets Vaadin's generic error page. `AppUserDetailsService` is not behind a breaker at all. See [resilience](../systems/resilience.md).
+A related gap: once a breaker opens, `ServiceUnavailableException` is caught only on the reveal paths (`AccountNumberDisplay.onToggle`, `DashboardView.toggleAll`) and in the program sections (`ProgramLookup`). The `DashboardView` constructor, `MainLayout`'s `currentHolder()` call and `AccountDetailView.setParameter` let it reach `GlobalErrorHandler`, so the user gets Vaadin's generic error page. `AppUserDetailsService` is not behind a breaker at all. See [resilience](../systems/resilience.md).
 
 ## Configuration and flags
 

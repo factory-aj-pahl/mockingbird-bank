@@ -133,7 +133,7 @@ diff could have caused.
 | `ui/view/AccountNumberDisplay.java`, `AccountService.reveal*` | W6, W11 |
 | `service/AccountService.java`, `model/**`, `repository/**`, `db/migration/**` | W4, W5, W10, W11 |
 | `config/DataInitializer.java` | W2, W4, W5, W15 |
-| `service/Program*.java`, `ui/view/ProgramCard.java`, `model/Program*.java`, `config/BusinessClockConfig.java` | W15, W13 |
+| `service/Program*.java`, `ui/view/ProgramCard.java`, `ui/view/ProgramLookup.java`, `model/Program*.java`, `config/BusinessClockConfig.java` | W15, W13 |
 | `ui/layout/MainLayout.java`, `ui/layout/BirdMark.java` | W7, W8, W9, W4 (adjacent) |
 | `src/main/frontend/**` (theme CSS) | W4, W5, W8 (screenshots matter here) |
 | `observability/**`, `build.gradle` build-info/git config, `gradle.properties` | W7, W12 |

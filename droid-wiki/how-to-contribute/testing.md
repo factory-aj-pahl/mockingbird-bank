@@ -110,13 +110,14 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagServiceTest.java` | JUnit | Defaults, overrides, `allFlags()` |
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagsEndpointTest.java` | JUnit | Endpoint delegates to the service |
 | `src/test/java/com/mockingbirdbank/config/BusinessClockConfigTest.java` | JUnit | The business clock runs on America/New_York |
-| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Mockito | `showAccountCount` line (singular, plural, no extra `AccountService` calls, absent when the flag is off) and `showAccountPrograms` (off, cards and notice, no notice when met, none, unavailable) |
+| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Mockito | `showAccountCount` line (singular, plural, no extra `AccountService` calls, absent when the flag is off) and `showAccountPrograms` (off, cards and notice, no notice when met, none, unavailable for an open breaker and for a database error) |
 | `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java` | JUnit | Program card links, status pill, unmet rules |
+| `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java` | JUnit | Program read fallback: open breaker and database errors give an empty result, other exceptions propagate |
 | `src/test/java/com/mockingbirdbank/config/logging/ScrubbingMessageConverterTest.java` | JUnit | Password, token, Bearer header, card numbers, null and empty input |
 
 ## Known gaps
 
-- `DashboardViewTest` and `ProgramCardTest` are the only JUnit tests in `com.mockingbirdbank.ui`. `AccountDetailView`, including its program section, has no unit test. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
+- `DashboardViewTest`, `ProgramCardTest` and `ProgramLookupTest` are the only JUnit tests in `com.mockingbirdbank.ui`. `AccountDetailView` has no unit test; its program section's fallback is `ProgramLookup`, which `ProgramLookupTest` covers. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
 - `CircuitBreakerBehaviorTest` checks tripping only, not recovery through half-open, although `AGENTS.md` says it verifies both.
 - `AccountServiceTest.requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne` covers the ownership check at the service level, but no test drives `/accounts/{id}` for another holder's account end to end, and the Playwright suite signs in only as `jordan.ellis`. See [Security](../security.md#account-detail-ownership-check).
 - The Playwright suite runs only on demand. The post-publish smoke test in `.github/workflows/publish-image.yml` checks only that the image boots and is healthy.

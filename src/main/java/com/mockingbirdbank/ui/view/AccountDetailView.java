@@ -4,9 +4,7 @@ import com.mockingbirdbank.analytics.AnalyticsEventService;
 import com.mockingbirdbank.config.FeatureFlagService;
 import com.mockingbirdbank.model.Account;
 import com.mockingbirdbank.model.Transaction;
-import com.mockingbirdbank.resilience.ServiceUnavailableException;
 import com.mockingbirdbank.service.AccountService;
-import com.mockingbirdbank.service.ProgramEvaluation;
 import com.mockingbirdbank.service.ProgramService;
 import com.mockingbirdbank.service.TransactionService;
 import com.mockingbirdbank.ui.layout.MainLayout;
@@ -27,7 +25,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * The transaction history for one account, at /accounts/{id}. Mirrors the "Account Detail" artboard
@@ -96,21 +93,23 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
         section.setPadding(false);
         section.setSpacing(false);
         section.getStyle().set("gap", "0.5rem");
-        Optional<ProgramEvaluation> program;
-        try {
-            program = programService.evaluationFor(account);
-        } catch (ServiceUnavailableException e) {
-            section.add(ProgramCard.message(ProgramCard.UNAVAILABLE, "programs-unavailable"));
-            return section;
-        }
         section.add(
-                program.<Component>map(ProgramCard::new)
+                ProgramLookup.orUnavailable(() -> programContent(account))
                         .orElseGet(
                                 () ->
                                         ProgramCard.message(
-                                                "This account isn't part of a program.",
-                                                "program-none")));
+                                                ProgramCard.UNAVAILABLE, "programs-unavailable")));
         return section;
+    }
+
+    private Component programContent(Account account) {
+        return programService
+                .evaluationFor(account)
+                .<Component>map(ProgramCard::new)
+                .orElseGet(
+                        () ->
+                                ProgramCard.message(
+                                        "This account isn't part of a program.", "program-none"));
     }
 
     private Anchor backLink() {

@@ -23,6 +23,7 @@ src/main/java/com/mockingbirdbank/
     AccountCard.java          one clickable account tile
     AccountNumberDisplay.java masked number with an eye toggle
     ProgramCard.java          one program, its accounts and unmet rules
+    ProgramLookup.java        program read fallback for the views
 src/main/frontend/themes/mockingbird/
   styles.css                  --mb-* CSS variables, light and dark
   theme.json                  Lumo imports
@@ -41,6 +42,7 @@ src/main/frontend/themes/mockingbird/
 | `AccountCard` | `src/main/java/com/mockingbirdbank/ui/view/AccountCard.java` | An `Anchor` to `accounts/{id}` wrapping name, type tag, number line and balance. |
 | `AccountNumberDisplay` | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number plus eye button; see [Account number reveal](../features/account-number-reveal.md). |
 | `ProgramCard` | `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | A `Div` showing one `ProgramEvaluation`: name, met or not-met pill, account links, unmet rules. Also builds the dashboard notice and the muted one-line messages. See [Account programs](../features/account-programs.md). |
+| `ProgramLookup` | `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Runs the dashboard's and account page's program lookup; an open `programs` breaker or a database error gives an empty result, which the view shows as the "unavailable" message. |
 
 ## Routes
 
@@ -136,7 +138,7 @@ Sign out calls `AuthenticationContext.logout()`, which invalidates the session t
 
 ## Testing and coverage
 
-The unit tests under `src/test/java/com/mockingbirdbank/ui/` are `view/DashboardViewTest.java` and `view/ProgramCardTest.java`. `DashboardViewTest` builds `DashboardView` directly with a mocked `AccountService` and `ProgramService` (no running Vaadin UI is needed to construct these components) and checks the `showAccountCount` line and the `showAccountPrograms` branches. `ProgramCardTest` checks a card's account links, status and unmet rules. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching. Plain construction tests like these can check which components a view adds, but anything that depends on the browser (client callbacks, navigation, timers) still needs a browser fixture. The UI still counts toward the 30% project-wide floor.
+The unit tests under `src/test/java/com/mockingbirdbank/ui/` are `view/DashboardViewTest.java`, `view/ProgramCardTest.java` and `view/ProgramLookupTest.java`. `DashboardViewTest` builds `DashboardView` directly with a mocked `AccountService` and `ProgramService` (no running Vaadin UI is needed to construct these components) and checks the `showAccountCount` line and the `showAccountPrograms` branches. `ProgramCardTest` checks a card's account links, status and unmet rules, and `ProgramLookupTest` checks which exceptions turn into the "unavailable" result. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching. Plain construction tests like these can check which components a view adds, but anything that depends on the browser (client callbacks, navigation, timers) still needs a browser fixture. The UI still counts toward the 30% project-wide floor.
 
 The UI is exercised instead by:
 
@@ -161,6 +163,7 @@ See [Testing](../how-to-contribute/testing.md).
 | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Main page and reveal-all toolbar |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | URL parameter handling, not-found path and program section |
 | `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | Program card, notice and messages |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Program read fallback |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Client callback, auto-hide timer, click handling inside an anchor |
 | `src/main/frontend/themes/mockingbird/styles.css` | Palette for both modes |
 | `src/main/java/com/mockingbirdbank/security/SecurityConfig.java` | Where `LoginView` is wired into Spring Security |

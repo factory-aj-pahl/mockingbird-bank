@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 class DashboardViewTest {
 
@@ -138,6 +139,18 @@ class DashboardViewTest {
         DashboardView view = programsDashboard();
 
         assertThat(texts(view, "programs-unavailable")).containsExactly(ProgramCard.UNAVAILABLE);
+        assertThat(descendants(view).filter(AccountCard.class::isInstance)).hasSize(2);
+    }
+
+    @Test
+    void programsDatabaseErrorBeforeTheBreakerOpensStillShowsTheAccounts() {
+        when(programService.evaluationsFor(holder))
+                .thenThrow(new DataAccessResourceFailureException("connection refused"));
+
+        DashboardView view = programsDashboard();
+
+        assertThat(texts(view, "programs-unavailable")).containsExactly(ProgramCard.UNAVAILABLE);
+        assertThat(withClass(view, "program-notice")).isEmpty();
         assertThat(descendants(view).filter(AccountCard.class::isInstance)).hasSize(2);
     }
 

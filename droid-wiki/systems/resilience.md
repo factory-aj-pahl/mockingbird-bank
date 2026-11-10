@@ -93,13 +93,13 @@ Automatic transition from open to half-open is not enabled, so the breaker moves
 
 ## UI handling of ServiceUnavailableException
 
-The account number reveal path and the program sections catch it.
+The account number reveal path and the program sections catch it. The program sections also catch the database errors that come before the `programs` breaker opens.
 
 | Where | What it catches | User sees |
 | --- | --- | --- |
 | `AccountNumberDisplay.onToggle`, `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java:124-134` | `AccessDeniedException` or `ServiceUnavailableException` from `revealAccountNumber` | `showRevealFailed()`: a 4-second notification at top center, "We couldn't show the full account number right now. Please try again." The number stays masked. |
-| `DashboardView.toggleAll`, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:281-300` | `ServiceUnavailableException` from `revealAccountNumbers` | The same notification; no display is changed. |
-| `DashboardView.programEvaluations`, `AccountDetailView.programSection` | `ServiceUnavailableException` from `ProgramService` (`programs` breaker) | "Programs can't be shown right now. Please try again later." in place of the programs; the rest of the page renders normally, and the dashboard adds no unmet-requirements notice. |
+| `DashboardView.toggleAll`, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:277-296` | `ServiceUnavailableException` from `revealAccountNumbers` | The same notification; no display is changed. |
+| `DashboardView.programEvaluations`, `AccountDetailView.programSection`, both through `ProgramLookup.orUnavailable` (`src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java`) | `ServiceUnavailableException` from `ProgramService` (`programs` breaker open), and `DataAccessException`, `TransactionException` or `PersistenceException` from a database failure before it opens (logged at WARN) | "Programs can't be shown right now. Please try again later." in place of the programs; the rest of the page renders normally, and the dashboard adds no unmet-requirements notice. |
 
 Everywhere else the exception propagates. `DashboardView` calls `currentHolder`, `accountsFor` and `totalBalance` in its constructor, and `AccountDetailView.setParameter` catches only `IllegalArgumentException` around `requireAccount` and nothing around `transactionService.forAccount`. An open `accounts` or `transactions` breaker therefore still breaks those pages. With a breaker open, those pages fail through Vaadin's navigation error handling rather than a friendly message. The [dashboard](../features/dashboard.md) and [account detail](../features/account-detail.md) pages describe those views.
 
@@ -129,7 +129,8 @@ Everywhere else the exception propagates. `DashboardView` calls `currentHolder`,
 | `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | With a mocked repository that always throws `DataAccessResourceFailureException`, the first 10 `accountsFor(holder)` calls rethrow it and reach the repository 10 times; the 11th throws `ServiceUnavailableException` and the repository count stays at 10. A second test does the same for `TransactionService.forAccount` and the `transactions` breaker. |
 | `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | `revealAccountNumberFailsFastWhenCircuitBreakerIsOpen` forces `accounts` open with `transitionToOpenState()` and expects `ServiceUnavailableException`. |
 | `src/test/java/com/mockingbirdbank/service/ProgramServiceTest.java` | `evaluationsForFailsFastWhenCircuitBreakerIsOpen` does the same for `programs`. |
-| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | `programsUnavailableStillShowsTheAccounts`: with `ProgramService` throwing `ServiceUnavailableException`, the dashboard shows the "unavailable" message and still renders the account cards. |
+| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | `programsUnavailableStillShowsTheAccounts`: with `ProgramService` throwing `ServiceUnavailableException`, the dashboard shows the "unavailable" message and still renders the account cards. `programsDatabaseErrorBeforeTheBreakerOpensStillShowsTheAccounts` does the same for a `DataAccessResourceFailureException`. |
+| `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java` | An open breaker and the three database error types give an empty result; an unrelated exception propagates. |
 
 No test covers the half-open state or recovery back to closed. These tests run without Spring or Docker; see [Testing](../how-to-contribute/testing.md).
 
@@ -149,6 +150,7 @@ No test covers the half-open state or recovery back to closed. These tests run w
 | `src/main/java/com/mockingbirdbank/service/AccountService.java` | `accounts` breaker and `protectedCall` |
 | `src/main/java/com/mockingbirdbank/service/TransactionService.java` | `transactions` breaker and `protectedCall` |
 | `src/main/java/com/mockingbirdbank/service/ProgramService.java` | `programs` breaker and `protectedCall` |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Program sections' fallback for an open breaker or a database error |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Reveal failure notification |
 | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Reveal-all failure handling, programs section fallback |
 | `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | Trip test for the `accounts` and `transactions` breakers |

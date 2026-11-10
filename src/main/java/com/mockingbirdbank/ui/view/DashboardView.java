@@ -187,13 +187,9 @@ public class DashboardView extends VerticalLayout {
         return section;
     }
 
-    /** The holder's evaluated programs, or empty while the programs circuit breaker is open. */
+    /** The holder's evaluated programs, or empty when they can't be read right now. */
     private Optional<List<ProgramEvaluation>> programEvaluations(AccountHolder holder) {
-        try {
-            return Optional.of(programService.evaluationsFor(holder));
-        } catch (ServiceUnavailableException e) {
-            return Optional.empty();
-        }
+        return ProgramLookup.orUnavailable(() -> programService.evaluationsFor(holder));
     }
 
     private static VerticalLayout programsUnavailableSection() {

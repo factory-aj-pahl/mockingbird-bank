@@ -14,7 +14,7 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 
 ## Bugs and gaps
 
-**Medium: `ServiceUnavailableException` escapes page construction.** When a breaker is open, the `DashboardView` constructor (`currentHolder`, `accountsFor`, `totalBalance`), `MainLayout`'s constructor and `AccountDetailView.setParameter` do not catch it for the `accounts` and `transactions` breakers, so it reaches `GlobalErrorHandler` and Vaadin's generic error page. Only `AccountNumberDisplay.onToggle` and `DashboardView.toggleAll` show a friendly notification. The program sections handle the separate `programs` breaker with an inline message. Fix: catch it in the views (or a shared `HasErrorParameter<ServiceUnavailableException>` error view) and render a "temporarily unavailable" message.
+**Medium: `ServiceUnavailableException` escapes page construction.** When a breaker is open, the `DashboardView` constructor (`currentHolder`, `accountsFor`, `totalBalance`), `MainLayout`'s constructor and `AccountDetailView.setParameter` do not catch it for the `accounts` and `transactions` breakers, so it reaches `GlobalErrorHandler` and Vaadin's generic error page. Only `AccountNumberDisplay.onToggle` and `DashboardView.toggleAll` show a friendly notification. The program sections handle the separate `programs` breaker, and database errors before it opens, with an inline message (`ProgramLookup`). Fix: catch it in the views (or a shared `HasErrorParameter<ServiceUnavailableException>` error view) and render a "temporarily unavailable" message.
 
 **Medium: attempted usernames in the analytics log.** `AuthenticationEventListener.onFailure` (`src/main/java/com/mockingbirdbank/analytics/AuthenticationEventListener.java:30-37`) writes whatever was typed into the username field to `build/logs/analytics-events.log`, kept 30 days by `src/main/resources/logback-spring.xml`. A password typed into the wrong field persists. Fix: drop the username on failure, or log a hash or a "known user" boolean.
 
@@ -50,7 +50,7 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 
 - **Low: duplicate queries on dashboard load.** `MainLayout` and `DashboardView` each call `currentHolder()`, and `totalBalance(holder)` re-runs `accountsFor(holder)` that the view just ran (`src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:57-59`, `src/main/java/com/mockingbirdbank/service/AccountService.java:132-136`). Summing the list the view already has would remove one query; caching the holder per request would remove another.
 - **Low: "Across 1 accounts".** No singular form at `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:124`.
-- **Low: mixed date formats.** The account header prints `openedAt` as ISO `LocalDate` (`AccountDetailView.java:138`) while the grid uses `MM/dd/yyyy` (`AccountDetailView.java:41`).
+- **Low: mixed date formats.** The account header prints `openedAt` as ISO `LocalDate` (`AccountDetailView.java:137`) while the grid uses `MM/dd/yyyy` (`AccountDetailView.java:38`).
 - **Low: dark-mode button label never changes.** It always reads "Dark mode" (`src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java:69`), even when dark mode is on.
 - **Low: no `@PageTitle` on the main views.** Only `LoginView` sets one; `DashboardView` and `AccountDetailView` do not.
 - **Low: primary account line ignores `showAccountNumberOnDashboard`.** `balanceHero` always adds `primaryAccountLine` (`DashboardView.java:139-141`). With the flag off, the card numbers disappear but the hero still shows one. With it on, the first (checking) account has two independent reveal widgets on the same page.
@@ -60,9 +60,9 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 ## Test gaps
 
 - **Low:** the ownership check in `requireAccount` is tested only at the service level (`AccountServiceTest`). No test opens `/accounts/{id}` for another holder's account end to end, and the Playwright suite signs in only as `jordan.ellis`.
-- **Low:** the only tests under `src/test/java/com/mockingbirdbank/ui/` are `DashboardViewTest` (account count line and programs section) and `ProgramCardTest`. `AccountNumberDisplay` (reveal, hide, the 30-second auto-hide generation check, detach) has no unit test even though its logic is non-trivial. Plain JUnit can construct it with a mocked `AccountService`.
+- **Low:** the only tests under `src/test/java/com/mockingbirdbank/ui/` are `DashboardViewTest` (account count line and programs section), `ProgramCardTest` and `ProgramLookupTest`. `AccountNumberDisplay` (reveal, hide, the 30-second auto-hide generation check, detach) has no unit test even though its logic is non-trivial. Plain JUnit can construct it with a mocked `AccountService`.
 - **Low:** `CircuitBreakerBehaviorTest` covers closed to open but not the half-open trial and recovery.
-- **Low:** no test covers the `ServiceUnavailableException` path for the `accounts` or `transactions` breaker in `DashboardView` or `AccountDetailView`. Only the `programs` fallback on the dashboard is tested (`DashboardViewTest.programsUnavailableStillShowsTheAccounts`).
+- **Low:** no test covers the `ServiceUnavailableException` path for the `accounts` or `transactions` breaker in `DashboardView` or `AccountDetailView`. Only the `programs` fallback is tested (`DashboardViewTest.programsUnavailableStillShowsTheAccounts`, `DashboardViewTest.programsDatabaseErrorBeforeTheBreakerOpensStillShowsTheAccounts` and `ProgramLookupTest`).
 - **Low:** no test asserts that `FeatureFlagsProperties` defaults match `application.yml`.
 
 ## Dead ends

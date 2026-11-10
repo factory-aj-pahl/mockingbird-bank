@@ -17,6 +17,7 @@ Show customers which of their accounts belong to a program and whether the progr
 | `ProgramEvaluation` | `src/main/java/com/mockingbirdbank/service/ProgramEvaluation.java` | Record `(programType, accounts, unmetRules)`. `eligible()` is true when `unmetRules` is empty; `includes(accountId)` checks membership. |
 | `BusinessClockConfig` | `src/main/java/com/mockingbirdbank/config/BusinessClockConfig.java` | The `businessClock` bean, `Clock.system(America/New_York)`, which defines "today" for the age rule. |
 | `ProgramCard` | `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | The card for one evaluation, the dashboard notice, and the muted one-line messages. |
+| `ProgramLookup` | `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Runs a view's program lookup and returns empty when programs can't be read, so the view shows the "unavailable" message instead of failing the page. |
 
 ## Data model
 
@@ -78,7 +79,7 @@ Both screens are gated by `showAccountPrograms` (`mockingbird.feature-flags.show
 | Dashboard, top of the page | "Some of your program requirements aren't met. The details are under Your programs below. Your accounts and balances are not affected." Only when at least one program has an unmet rule. `role="status"` | `program-notice` |
 | Account detail, between header and transactions | "Program" label and the account's `ProgramCard` | `account-program` |
 | Account detail, no program | "This account isn't part of a program." | `program-none` |
-| Either screen, `programs` breaker open | "Programs can't be shown right now. Please try again later." The rest of the page still renders | `programs-unavailable` |
+| Either screen, programs can't be read (`programs` breaker open, or a database error before it opens) | "Programs can't be shown right now. Please try again later." The rest of the page still renders | `programs-unavailable` |
 
 Each `ProgramCard` (class `program-card`, with a `data-program` attribute holding the enum name) shows:
 
@@ -99,7 +100,7 @@ Riley's date of birth is relative to the seed date, so a freshly seeded database
 
 ## Integration points
 
-- **Resilience:** the `programs` breaker shares the tuning from `ResilienceConfig.defaultConfig()` but keeps its own state, so failing program queries do not stop accounts or transactions from loading. Both views catch its `ServiceUnavailableException`. See [Resilience](../systems/resilience.md).
+- **Resilience:** the `programs` breaker shares the tuning from `ResilienceConfig.defaultConfig()` but keeps its own state, so failing program queries do not stop accounts or transactions from loading. Both views read programs through `ProgramLookup`, which turns `ServiceUnavailableException` and the database errors that arrive before the breaker opens (`DataAccessException`, `TransactionException`, `PersistenceException`) into the "unavailable" message and logs the database errors at WARN. Any other exception still propagates. See [Resilience](../systems/resilience.md).
 - **Security:** evaluation is per holder, and accounts owned by someone else are never shown. The account page only evaluates an account after `requireAccount` has confirmed it belongs to the signed-in holder. See [Security](../security.md#program-links).
 - **Analytics:** none. Viewing programs records no events of its own.
 
@@ -113,7 +114,8 @@ Riley's date of birth is relative to the seed date, so a freshly seeded database
 
 - `src/test/java/com/mockingbirdbank/service/ProgramServiceTest.java`: the Regular balance boundary as a `@ParameterizedTest`, missing and extra accounts, non-USD savings, the Youth Savings age boundaries (the day before, on and after the 18th birthday), the New York date versus the UTC date, missing and future dates of birth, the leap-day birthday, a cross-customer account, `evaluationFor`, and the open breaker.
 - `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java`: account links and labels, the status pill, and the unmet-rules list.
-- `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java`: the flag off and on, the notice, the "none" message, and the "unavailable" message with the accounts still shown.
+- `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java`: the flag off and on, the notice, the "none" message, and the "unavailable" message with the accounts still shown, for an open breaker and for a database error.
+- `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java`: the lookup result, an open breaker, the three database error types, and an unrelated exception that still propagates.
 - `src/test/java/com/mockingbirdbank/config/BusinessClockConfigTest.java`: the business clock runs on New York time.
 - `src/test/java/com/mockingbirdbank/ProgramMigrationTest.java` (Testcontainers and Flyway directly): data written under V1 survives V2 as USD with no program, and the database rejects a cross-customer link (SQLSTATE `23503`), an unknown program type and a lower-case currency code (`23514`).
 - `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java`: both seeded holders take part in one program each that meets its rules, and `riley.chen` can sign in.
@@ -129,6 +131,7 @@ Riley's date of birth is relative to the seed date, so a freshly seeded database
 | `src/main/java/com/mockingbirdbank/repository/ProgramParticipationRepository.java` | Participation query |
 | `src/main/java/com/mockingbirdbank/config/BusinessClockConfig.java` | Business date |
 | `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | Card, notice, messages |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Fallback when programs can't be read |
 | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | "Your programs" section and notice |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | "Program" section |
 | `src/main/resources/db/migration/V2__account_programs.sql` | Schema and constraints |

@@ -58,4 +58,4 @@ graph LR
 - Login over HTTP and the seeded programs: `src/test/java/com/mockingbirdbank/ApplicationSmokeTest.java`.
 - Program schema constraints: `src/test/java/com/mockingbirdbank/ProgramMigrationTest.java`.
 
-Among the Vaadin views, only `DashboardView` has a unit test (`src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java`, for the account count line and the programs section), and the `ProgramCard` component has `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java`. JaCoCo tracks but does not gate coverage on `com.mockingbirdbank.ui.*` (see [Testing](../how-to-contribute/testing.md)).
+Among the Vaadin views, only `DashboardView` has a unit test (`src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java`, for the account count line and the programs section), the `ProgramCard` component has `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java`, and the `ProgramLookup` helper has `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java`. JaCoCo tracks but does not gate coverage on `com.mockingbirdbank.ui.*` (see [Testing](../how-to-contribute/testing.md)).
