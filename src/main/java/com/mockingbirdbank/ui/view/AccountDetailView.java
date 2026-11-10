@@ -94,7 +94,7 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
         section.setSpacing(false);
         section.getStyle().set("gap", "0.5rem");
         section.add(
-                ProgramLookup.orUnavailable(() -> programContent(account))
+                ProgramLookup.orUnavailable(analytics, () -> programContent(account))
                         .orElseGet(
                                 () ->
                                         ProgramCard.message(

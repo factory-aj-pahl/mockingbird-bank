@@ -29,7 +29,7 @@ Fields holding non-serializable Spring objects in Vaadin components are `transie
 ## Error handling and signals
 
 - User-facing failures are tracked, not just logged: `analytics.trackError(event, reason, attributes)` with a short, low-cardinality `reason` (`not_found`, `forbidden`, an exception simple name).
-- Views catch only what they can turn into a better UX. `AccountDetailView` converts a missing account into `NotFoundException`. `AccountNumberDisplay` shows a notification when a reveal fails. Everything else falls through to `GlobalErrorHandler`, which tracks `ui.unhandled_exception` and then delegates to Vaadin's `DefaultErrorHandler`.
+- Views catch only what they can turn into a better UX. `AccountDetailView` converts a missing account into `NotFoundException`. `AccountNumberDisplay` shows a notification when a reveal fails. The program sections show an inline "unavailable" message through `ProgramLookup` and track it as `programs.unavailable`. Everything else falls through to `GlobalErrorHandler`, which tracks `ui.unhandled_exception` and then delegates to Vaadin's `DefaultErrorHandler`.
 - Never log secrets or full account numbers. `ScrubbingMessageConverter` is a safety net, not permission.
 
 See [Analytics](../systems/analytics.md) and [Resilience](../systems/resilience.md).

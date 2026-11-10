@@ -75,7 +75,7 @@ public class DashboardView extends VerticalLayout {
         VerticalLayout programsSection = null;
         boolean unmetProgramRules = false;
         if (featureFlagService.showAccountPrograms()) {
-            Optional<List<ProgramEvaluation>> programs = programEvaluations(holder);
+            Optional<List<ProgramEvaluation>> programs = programEvaluations(holder, analytics);
             programsSection =
                     programs.map(DashboardView::programsSection)
                             .orElseGet(DashboardView::programsUnavailableSection);
@@ -188,8 +188,9 @@ public class DashboardView extends VerticalLayout {
     }
 
     /** The holder's evaluated programs, or empty when they can't be read right now. */
-    private Optional<List<ProgramEvaluation>> programEvaluations(AccountHolder holder) {
-        return ProgramLookup.orUnavailable(() -> programService.evaluationsFor(holder));
+    private Optional<List<ProgramEvaluation>> programEvaluations(
+            AccountHolder holder, AnalyticsEventService analytics) {
+        return ProgramLookup.orUnavailable(analytics, () -> programService.evaluationsFor(holder));
     }
 
     private static VerticalLayout programsUnavailableSection() {

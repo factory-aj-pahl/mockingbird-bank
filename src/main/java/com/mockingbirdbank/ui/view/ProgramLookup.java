@@ -1,7 +1,9 @@
 package com.mockingbirdbank.ui.view;
 
+import com.mockingbirdbank.analytics.AnalyticsEventService;
 import com.mockingbirdbank.resilience.ServiceUnavailableException;
 import jakarta.persistence.PersistenceException;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -18,8 +20,13 @@ import org.springframework.transaction.TransactionException;
  * breaker. Before it opens, and on a failed half-open trial, the database error itself arrives:
  * translated by the repository ({@link DataAccessException}), from the {@code @Transactional} proxy
  * around {@code ProgramService} before the breaker sees the call ({@link TransactionException}), or
- * untranslated from Hibernate ({@link PersistenceException}). Any other exception is a bug and
- * still propagates.
+ * untranslated from Hibernate ({@link PersistenceException}). These types also cover failures that
+ * are bugs rather than outages, such as a query against a missing table or a Hibernate mapping
+ * error. They get the same fallback, because a programs failure must not take the accounts down
+ * with it. Every fallback is tracked as {@code programs.unavailable} with the exception's simple
+ * class name as the reason, and the database errors are logged at WARN with their stack trace, so a
+ * bug still shows up as an error count. Exceptions outside these types still propagate to {@code
+ * GlobalErrorHandler}.
  */
 final class ProgramLookup {
 
@@ -28,14 +35,20 @@ final class ProgramLookup {
     private ProgramLookup() {}
 
     /** The lookup's result, or empty when programs can't be read right now. */
-    static <T> Optional<T> orUnavailable(Supplier<T> lookup) {
+    static <T> Optional<T> orUnavailable(AnalyticsEventService analytics, Supplier<T> lookup) {
         try {
             return Optional.of(lookup.get());
         } catch (ServiceUnavailableException e) {
-            return Optional.empty();
+            return unavailable(analytics, e);
         } catch (DataAccessException | TransactionException | PersistenceException e) {
             log.warn("Programs could not be read; showing them as unavailable", e);
-            return Optional.empty();
+            return unavailable(analytics, e);
         }
+    }
+
+    private static <T> Optional<T> unavailable(
+            AnalyticsEventService analytics, RuntimeException failure) {
+        analytics.trackError("programs.unavailable", failure.getClass().getSimpleName(), Map.of());
+        return Optional.empty();
     }
 }

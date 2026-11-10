@@ -112,7 +112,7 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 | `src/test/java/com/mockingbirdbank/config/BusinessClockConfigTest.java` | JUnit | The business clock runs on America/New_York |
 | `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Mockito | `showAccountCount` line (singular, plural, no extra `AccountService` calls, absent when the flag is off) and `showAccountPrograms` (off, cards and notice, no notice when met, none, unavailable for an open breaker and for a database error) |
 | `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java` | JUnit | Program card links, status pill, unmet rules |
-| `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java` | JUnit | Program read fallback: open breaker and database errors give an empty result, other exceptions propagate |
+| `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java` | JUnit | Program read fallback: open breaker and database errors give an empty result and a `programs.unavailable` count, other exceptions propagate |
 | `src/test/java/com/mockingbirdbank/config/logging/ScrubbingMessageConverterTest.java` | JUnit | Password, token, Bearer header, card numbers, null and empty input |
 
 ## Known gaps

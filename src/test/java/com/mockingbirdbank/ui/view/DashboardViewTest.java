@@ -23,6 +23,7 @@ import com.vaadin.flow.component.html.Span;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ class DashboardViewTest {
 
     private final AccountService accountService = mock(AccountService.class);
     private final ProgramService programService = mock(ProgramService.class);
+    private final AnalyticsEventService analytics = mock(AnalyticsEventService.class);
     private final AccountHolder holder =
             new AccountHolder("Jordan Ellis", "jordan.ellis@example.com");
 
@@ -140,6 +142,8 @@ class DashboardViewTest {
 
         assertThat(texts(view, "programs-unavailable")).containsExactly(ProgramCard.UNAVAILABLE);
         assertThat(descendants(view).filter(AccountCard.class::isInstance)).hasSize(2);
+        verify(analytics)
+                .trackError("programs.unavailable", "ServiceUnavailableException", Map.of());
     }
 
     @Test
@@ -152,6 +156,8 @@ class DashboardViewTest {
         assertThat(texts(view, "programs-unavailable")).containsExactly(ProgramCard.UNAVAILABLE);
         assertThat(withClass(view, "program-notice")).isEmpty();
         assertThat(descendants(view).filter(AccountCard.class::isInstance)).hasSize(2);
+        verify(analytics)
+                .trackError("programs.unavailable", "DataAccessResourceFailureException", Map.of());
     }
 
     private DashboardView dashboard(boolean showAccountCount, int accountCount) {
@@ -183,10 +189,7 @@ class DashboardViewTest {
         when(accountService.accountsFor(holder)).thenReturn(accounts);
         when(accountService.totalBalance(holder)).thenReturn(BigDecimal.TEN);
         return new DashboardView(
-                accountService,
-                new FeatureFlagService(properties),
-                mock(AnalyticsEventService.class),
-                programService);
+                accountService, new FeatureFlagService(properties), analytics, programService);
     }
 
     private Account account(AccountType type, String nickname) {

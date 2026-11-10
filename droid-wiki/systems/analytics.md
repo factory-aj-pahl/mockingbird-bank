@@ -110,6 +110,7 @@ Every `track`/`trackError` call in `src/main`:
 | `account_number.revealed` | error | `forbidden` | `accountId` | `AccountService.revealAccountNumber` when the account is missing or owned by someone else, `src/main/java/com/mockingbirdbank/service/AccountService.java:82` |
 | `user.login` | success | `n/a` | `username` | `AuthenticationEventListener.onSuccess` |
 | `user.login` | error | exception simple class name, for example `BadCredentialsException` | `username` | `AuthenticationEventListener.onFailure` |
+| `programs.unavailable` | error | exception simple class name: `ServiceUnavailableException` for an open `programs` breaker, otherwise the database exception, for example `DataAccessResourceFailureException` | none | `ProgramLookup.orUnavailable` when the dashboard's or account page's program section shows the "unavailable" message, `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java:51` |
 | `ui.unhandled_exception` | error | exception simple class name | none | `GlobalErrorHandler.handle` |
 
 The reveal event never includes the account number itself. The [account number reveal](../features/account-number-reveal.md) page covers the feature side.
@@ -139,6 +140,7 @@ Spring Security publishes `AuthenticationSuccessEvent` or a subclass of `Abstrac
 | `src/test/java/com/mockingbirdbank/analytics/AuthenticationEventListenerTest.java` | Success maps to `user.login`/`success`; a `BadCredentialsException` failure maps to `reason=BadCredentialsException`. |
 | `src/test/java/com/mockingbirdbank/analytics/GlobalErrorHandlerTest.java` | Drives the captured session-init listener and error handler with Mockito and checks `ui.unhandled_exception` with `reason=IllegalStateException`. |
 | `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | Verifies the `account_number.revealed` success and `forbidden` calls against a mocked `AnalyticsEventService`. |
+| `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java` | `programs.unavailable` with the exception's simple name as the reason for an open breaker and each database error type; no event when the lookup succeeds or an unrelated exception propagates. |
 
 All use `SimpleMeterRegistry`; none need Spring or Docker.
 

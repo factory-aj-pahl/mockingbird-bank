@@ -9,20 +9,20 @@ The application code lives in nine packages under `src/main/java/com/mockingbird
 | Package | Main files | Main lines | Test files | Test lines | What it holds | Covered in |
 | --- | --- | --- | --- | --- | --- | --- |
 | `com.mockingbirdbank` (root) | 1 | 15 | 2 | 360 | `Application` entry point with `@Theme("mockingbird")` | [UI](ui.md) |
-| `ui` (`layout/`, `view/`) | 8 | 1,099 | 2 | 281 | Vaadin routes, the shared top bar, account cards, the number reveal component, program cards | [UI](ui.md) |
-| `service` | 4 | 423 | 4 | 679 | `AccountService`, `TransactionService`, `ProgramService`, `ProgramEvaluation` | [Services](services.md) |
-| `model` | 7 | 354 | 2 | 109 | JPA entities and the `AccountType` and `ProgramType` enums | [Persistence](persistence.md) |
+| `ui` (`layout/`, `view/`) | 9 | 1,166 | 3 | 378 | Vaadin routes, the shared top bar, account cards, the number reveal component, program cards | [UI](ui.md) |
+| `service` | 4 | 425 | 4 | 677 | `AccountService`, `TransactionService`, `ProgramService`, `ProgramEvaluation` | [Services](services.md) |
+| `model` | 7 | 365 | 2 | 109 | JPA entities and the `AccountType` and `ProgramType` enums | [Persistence](persistence.md) |
 | `repository` | 5 | 46 | 0 | 0 | Spring Data JPA interfaces | [Persistence](persistence.md) |
 | `security` | 2 | 86 | 1 | 57 | `SecurityConfig`, `AppUserDetailsService` | [Security](../security.md) |
 | `analytics` | 3 | 188 | 3 | 226 | Product events, error tracking, login listener, Vaadin error handler | [Analytics](analytics.md) |
 | `resilience` | 2 | 59 | 1 | 82 | Circuit breaker config, `ServiceUnavailableException` | [Resilience](resilience.md) |
 | `observability` | 3 | 212 | 3 | 248 | Correlation IDs, JFR profiling endpoint, `BuildVersion` | [Observability](observability.md) |
 | `config` (incl. `config/logging/`) | 6 | 408 | 4 | 150 | Feature flags, `DataInitializer` seeding, `BusinessClockConfig`, `ScrubbingMessageConverter` | [Feature flags](../features/feature-flags.md), [Persistence](persistence.md#seeding), [Security](../security.md) |
-| **Total** | **41** | **2,890** | **22** | **2,192** | | |
+| **Total** | **42** | **2,970** | **23** | **2,287** | | |
 
 Counts are of the `.java` files under `src/main/java` and `src/test/java`, by package directory.
 
-The test-to-code ratio is 0.76 by lines (2,261 test lines for 2,956 main lines) and 0.55 by files. That average hides a split: the `ui` package has 1,152 lines and only three unit test classes (`DashboardViewTest` for the account count line and programs section, `ProgramCardTest` for the program card, `ProgramLookupTest` for the program read fallback), while `service` has 1.6 test lines per main line. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
+The test-to-code ratio is 0.77 by lines (2,287 test lines for 2,970 main lines) and 0.55 by files. That average hides a split: the `ui` package has 1,166 lines and only three unit test classes (`DashboardViewTest` for the account count line and programs section, `ProgramCardTest` for the program card, `ProgramLookupTest` for the program read fallback), while `service` has 1.6 test lines per main line. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
 
 ## Layering
 
