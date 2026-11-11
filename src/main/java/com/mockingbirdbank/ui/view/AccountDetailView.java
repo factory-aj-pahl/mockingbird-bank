@@ -41,7 +41,7 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
     private final TransactionService transactionService;
     private final AnalyticsEventService analytics;
     private final FeatureFlagService featureFlagService;
-    private final ProgramService programService;
+    private final transient ProgramService programService;
 
     public AccountDetailView(
             AccountService accountService,

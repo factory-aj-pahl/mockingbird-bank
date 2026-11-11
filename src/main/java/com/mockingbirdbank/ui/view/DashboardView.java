@@ -42,8 +42,8 @@ public class DashboardView extends VerticalLayout {
 
     private final FeatureFlagService featureFlagService;
     private final AccountService accountService;
-    private final ProgramService programService;
-    private final AnalyticsEventService analytics;
+    private final transient ProgramService programService;
+    private final transient AnalyticsEventService analytics;
     private final List<AccountNumberDisplay> numberDisplays = new ArrayList<>();
     private final Button revealAllToggle = new Button();
 
