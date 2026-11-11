@@ -335,7 +335,14 @@ mockingbird-bank-dev port-forward deployment/mockingbird-app 8080:8080` against
 
 Needs `SHOW_ACCOUNT_PROGRAMS=true` (restart steps in W13; confirm it via
 `/actuator/featureflags`). Expected values are the seed's; on a persistent database check Known
-Failure Modes 5 and 11 first.
+Failure Mode 11 first. Then, before step 1, record the program links of Vacation Savings and
+High-Yield Savings with SQL (`<db_access command>`):
+`SELECT account_number, coalesce(program_participation_id::text, 'NULL') FROM account WHERE
+account_number IN ('2000000000092', '2000000007743');`
+On the seed Vacation Savings (`2000000000092`) prints `NULL`; its recorded value is what step 4
+puts back, and any other value is a link that was there before the run. If Vacation Savings
+prints the same number as High-Yield Savings (`2000000007743`), see Known Failure Mode 5 before
+judging step 1.
 
 1. Sign in as holder. PASS: a "Your programs" section sits below "Your accounts" with one card
    (`.program-card[data-program="REGULAR"]`) named "Regular", status "Requirements met", and
@@ -344,13 +351,7 @@ Failure Modes 5 and 11 first.
 2. Click "High-Yield Savings · Savings". PASS: its account page has a "Program" section
    (`.account-program`) with the same Regular card. Back on the dashboard, open Vacation
    Savings. PASS: its "Program" section reads "This account isn't part of a program."
-3. Unmet rule: first record Vacation Savings' current link with SQL (`<db_access command>`)
-   so step 4 can put it back:
-   `SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
-   '2000000000092';` prints `NULL` on the seed. Any other value is a link that was there before
-   the run; keep it for step 4. If it equals High-Yield Savings' participation (the subquery
-   below), the account is already in the state this step creates, most likely left over from an
-   interrupted run: see Known Failure Mode 5. Then link it into the same program:
+3. Unmet rule: link Vacation Savings into High-Yield Savings' program with SQL:
    `UPDATE account SET program_participation_id = (SELECT program_participation_id FROM account
    WHERE account_number = '2000000007743') WHERE account_number = '2000000000092';`
    Reload the dashboard. PASS: the Regular card shows "Requirements not met", lists Vacation
@@ -358,7 +359,7 @@ Failure Modes 5 and 11 first.
    account, but 2 are linked."; the `.program-notice` ("Some of your program requirements aren't
    met. ...") shows near the top of the page; total assets and the three account cards are
    unchanged.
-4. Always restore the value recorded in step 3, even after a failure:
+4. Always restore Vacation Savings' value recorded before step 1, even after a failure:
    `UPDATE account SET program_participation_id = <recorded value> WHERE account_number =
    '2000000000092';` (`<recorded value>` is `NULL` on the seed). Reload. PASS: back to the
    state in step 1.
@@ -396,11 +397,14 @@ Failure Modes 5 and 11 first.
 5. **Persistent databases.** k3d (PVC) and local (compose volume) keep data between runs. A
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
    idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
-   leaves Vacation Savings linked into Jordan's Regular program: W15 step 1 then lists it with
-   "Requirements not met", and in step 2 its account page shows the Regular card. Step 4 puts
-   back what step 3 recorded, so later runs keep that link instead of clearing it. Report W15
-   steps 1 and 2 BLOCKED with that reason rather than FAIL (leftover data, not a regression), and
-   give the user the statement that returns the seed state instead of running it:
+   leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
+   recorded value, later runs keep that link. The SELECT before W15 step 1 shows it: Vacation
+   Savings prints the same number as High-Yield Savings. Only that result marks it as leftover
+   data. The same screens (Vacation Savings listed under Regular with "Requirements not met", the
+   Regular card on its account page) with `NULL` recorded are a regression: FAIL them. When the
+   numbers match, W15 steps 1 to 4 cannot show the change from met to unmet that they test:
+   report them BLOCKED with that reason rather than FAIL, still run steps 5 and 6, and give the
+   user the statement that returns the seed state instead of running it:
    `UPDATE account SET program_participation_id = NULL WHERE account_number = '2000000000092';`
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
