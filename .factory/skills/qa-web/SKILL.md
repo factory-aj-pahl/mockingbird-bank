@@ -395,22 +395,17 @@ The seed prints `NULL`; for any other value, see Known Failure Mode 5 before jud
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
    idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
    leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
-   recorded value, later runs keep that link. A value other than `NULL` recorded before W15 step
-   1 is data from before the run only if no app start in this run seeded the database and the
-   diff adds or changes no code besides DataInitializer that writes the link. DataInitializer
-   writes program links only while it seeds an empty database, and then logs "Seeded DEMO logins
-   for local/dev use only": look for that line in the log of every app start or deploy this run
-   did (on `ci` it is always there). For other writers, look in the diff for
-   `setProgramParticipation` calls under `src/main` outside DataInitializer (and the methods
-   around them), and for an `UPDATE` or `INSERT` of `program_participation_id` in a migration.
-   If neither check finds anything, W15 steps 1 to 4 cannot show the change from met to unmet
-   that they test: report them BLOCKED with the recorded value as the reason rather than FAIL,
-   and list the statement that returns the seed state under Action Required instead of running
-   it:
+   recorded value, later runs keep that link. On k3d or local, a value other than `NULL`
+   recorded before W15 step 1 can be that leftover link or one the code under test wrote, and
+   the run cannot tell which. Report W15 steps 1 to 4 BLOCKED with the recorded value as the
+   reason rather than FAIL. Under Action Required, give the user the statement that returns the
+   seed state instead of running it,
    `UPDATE account SET program_participation_id = NULL WHERE account_number = '2000000000092';`
+   and add that a link that comes back on a newly seeded database (after `k3d-deploy.sh down
+   --purge-db` or `docker compose down -v`) is written by the code under test, which is a FAIL.
    Still sign in as holder and note Jordan's account links from the dashboard, then run steps 5
-   and 6 as usual. Otherwise judge the steps as written: Vacation Savings listed under Regular is
-   then a FAIL.
+   and 6 as usual. On `ci` the database is new every run, so judge the steps as written there:
+   Vacation Savings listed under Regular is then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
