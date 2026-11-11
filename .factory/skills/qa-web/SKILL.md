@@ -395,19 +395,17 @@ The seed prints `NULL`; for any other value, see Known Failure Mode 5 before jud
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
    idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
    leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
-   recorded value, later runs keep that link. When the database was seeded for this run (always
-   on `ci`; on k3d or local when this run's first deploy created it, when this run reseeded it
-   with the user's agreement as in Known Failure Modes 4 and 11, or when the user says they
-   reseeded it as asked below), the build under test wrote the value recorded before W15 step 1,
-   so judge the steps as written: Vacation Savings listed under Regular is then a FAIL.
-   Otherwise, on k3d or local, a value other than `NULL` can be that leftover link or one the
-   code under test wrote, and the run cannot tell which. Report W15 steps 1 to 4 BLOCKED with the
-   recorded value as the reason rather than FAIL. Under Action Required, ask the user to reseed
-   (`k3d-deploy.sh down --purge-db` and redeploy, or `docker compose down -v` and restart the
-   app), then rerun and say the database was reseeded. Don't suggest clearing the link by hand:
-   that doesn't reseed, so a later PASS wouldn't show that the code under test leaves Vacation
-   Savings unlinked. Still sign in as holder and note Jordan's account links from the dashboard,
-   then run steps 5 and 6 as usual.
+   recorded value, later runs keep that link. On k3d or local, a value other than `NULL`
+   recorded before W15 step 1 can be that leftover link or one the code under test wrote, and
+   the run cannot tell which. Report W15 steps 1 to 4 BLOCKED with the recorded value as the
+   reason rather than FAIL, also after a purge in this run. Under Action Required, ask the user to
+   purge the database (`k3d-deploy.sh down --purge-db`, or `docker compose down -v` for local)
+   and rerun /qa, which then seeds it again. A link that comes back after a purge points at the
+   code under test; the `ci` run, which starts from a new database, judges it. Don't suggest
+   clearing the link by hand: that doesn't reseed, so a later PASS wouldn't show that the code
+   under test leaves Vacation Savings unlinked. Still sign in as holder and note Jordan's account
+   links from the dashboard, then run steps 5 and 6 as usual. On `ci` the database is new every
+   run, so judge the steps as written there: Vacation Savings listed under Regular is then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
