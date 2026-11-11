@@ -339,8 +339,7 @@ Failure Mode 11 first. Then, before step 1, record Vacation Savings' program lin
 (`<db_access command>`) so step 4 can put it back:
 `SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
 '2000000000092';`
-The seed prints `NULL`. On k3d or local, any other value means the data no longer matches the
-seed: see Known Failure Mode 5 before judging step 1.
+The seed prints `NULL`; for any other value, see Known Failure Mode 5 before judging step 1.
 
 1. Sign in as holder. PASS: a "Your programs" section sits below "Your accounts" with one card
    (`.program-card[data-program="REGULAR"]`) named "Regular", status "Requirements met", and
@@ -396,17 +395,18 @@ seed: see Known Failure Mode 5 before judging step 1.
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
    idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
    leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
-   recorded value, later runs keep that link. The app writes program links only when it seeds an
-   empty database, so on a database seeded before this run a value other than `NULL` recorded
-   before W15 step 1 is existing data, not a regression. W15 steps 1 to 4 then cannot show the
-   change from met to unmet that they test: report them BLOCKED with the recorded value as the
-   reason rather than FAIL, and give the user the statement that returns the seed state instead
-   of running it:
+   recorded value, later runs keep that link. Today only DataInitializer writes program links,
+   and it seeds only an empty database. So on a k3d or local database this run did not purge, a
+   value other than `NULL` recorded before W15 step 1 is data from before the run, unless the
+   diff adds another writer (a Flyway migration, or code that sets `Account.programParticipation`).
+   W15 steps 1 to 4 then cannot show the change from met to unmet that they test: report them
+   BLOCKED with the recorded value as the reason rather than FAIL, and list the statement that
+   returns the seed state under Action Required instead of running it:
    `UPDATE account SET program_participation_id = NULL WHERE account_number = '2000000000092';`
    Still sign in as holder and note Jordan's account links from the dashboard, then run steps 5
-   and 6 as usual. With `NULL` recorded, or on a database the build under test seeded (`ci` on
-   every run, k3d or local after a purge), judge the steps as written: Vacation Savings listed
-   under Regular is then a FAIL.
+   and 6 as usual. In every other case (`NULL` recorded, `ci`, a database this run purged, or a
+   diff that adds a writer) judge the steps as written: Vacation Savings listed under Regular is
+   then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
