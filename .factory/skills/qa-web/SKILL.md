@@ -345,9 +345,12 @@ Failure Mode 11 first.
    (`.account-program`) with the same Regular card. Back on the dashboard, open Vacation
    Savings. PASS: its "Program" section reads "This account isn't part of a program."
 3. Unmet rule: first record Vacation Savings' current link with SQL (`<db_access command>`)
-   so step 4 can put it back: `SELECT program_participation_id FROM account WHERE
-   account_number = '2000000000092';` (NULL on the seed; a persistent database may hold a link).
-   Then link it into the same program:
+   so step 4 can put it back:
+   `SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
+   '2000000000092';` prints `NULL` on the seed. Any other value is a link that was there before
+   the run; keep it for step 4. If it equals High-Yield Savings' participation (the subquery
+   below), the account is already in the state this step creates, most likely left over from an
+   interrupted run: see Known Failure Mode 5. Then link it into the same program:
    `UPDATE account SET program_participation_id = (SELECT program_participation_id FROM account
    WHERE account_number = '2000000007743') WHERE account_number = '2000000000092';`
    Reload the dashboard. PASS: the Regular card shows "Requirements not met", lists Vacation
@@ -392,7 +395,12 @@ Failure Mode 11 first.
    run the cleanup SQL and restart the app, or ask the user before `k3d-deploy.sh down --purge-db`.
 5. **Persistent databases.** k3d (PVC) and local (compose volume) keep data between runs. A
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
-   idempotent and the cleanup SQL is safe to re-run.
+   idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
+   leaves Vacation Savings linked into Jordan's Regular program, and W15 step 1 then lists it
+   with "Requirements not met". Step 4 puts back what step 3 recorded, so later runs keep that
+   link instead of clearing it. Report it as leftover data, not a regression, and give the user
+   the statement that returns the seed state:
+   `UPDATE account SET program_participation_id = NULL WHERE account_number = '2000000000092';`
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
