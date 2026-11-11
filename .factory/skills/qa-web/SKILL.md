@@ -344,7 +344,10 @@ Failure Mode 11 first.
 2. Click "High-Yield Savings · Savings". PASS: its account page has a "Program" section
    (`.account-program`) with the same Regular card. Back on the dashboard, open Vacation
    Savings. PASS: its "Program" section reads "This account isn't part of a program."
-3. Unmet rule: link Vacation Savings into the same program with SQL (`<db_access command>`):
+3. Unmet rule: first record Vacation Savings' current link with SQL (`<db_access command>`)
+   so step 4 can put it back: `SELECT program_participation_id FROM account WHERE
+   account_number = '2000000000092';` (NULL on the seed; a persistent database may hold a link).
+   Then link it into the same program:
    `UPDATE account SET program_participation_id = (SELECT program_participation_id FROM account
    WHERE account_number = '2000000007743') WHERE account_number = '2000000000092';`
    Reload the dashboard. PASS: the Regular card shows "Requirements not met", lists Vacation
@@ -352,9 +355,10 @@ Failure Mode 11 first.
    account, but 2 are linked."; the `.program-notice` ("Some of your program requirements aren't
    met. ...") shows near the top of the page; total assets and the three account cards are
    unchanged.
-4. Always restore, even after a failure:
-   `UPDATE account SET program_participation_id = NULL WHERE account_number = '2000000000092';`
-   Reload. PASS: back to the state in step 1.
+4. Always restore the value recorded in step 3, even after a failure:
+   `UPDATE account SET program_participation_id = <recorded value> WHERE account_number =
+   '2000000000092';` (`<recorded value>` is `NULL` on the seed). Reload. PASS: back to the
+   state in step 1.
 5. Sign out and sign in as youth_holder. PASS: "Welcome back, Riley Chen", one Youth Savings
    account card ($245.50) and one "Youth Savings" program card with "Requirements met" that
    links "Youth Savings · Savings". Nothing of Jordan's (names, balances, programs) appears.
