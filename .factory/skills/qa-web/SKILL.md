@@ -335,14 +335,12 @@ mockingbird-bank-dev port-forward deployment/mockingbird-app 8080:8080` against
 
 Needs `SHOW_ACCOUNT_PROGRAMS=true` (restart steps in W13; confirm it via
 `/actuator/featureflags`). Expected values are the seed's; on a persistent database check Known
-Failure Mode 11 first. Then, before step 1, record the program links of Vacation Savings and
-High-Yield Savings with SQL (`<db_access command>`):
-`SELECT account_number, coalesce(program_participation_id::text, 'NULL') FROM account WHERE
-account_number IN ('2000000000092', '2000000007743');`
-On the seed Vacation Savings (`2000000000092`) prints `NULL`; its recorded value is what step 4
-puts back, and any other value is a link that was there before the run. If Vacation Savings
-prints the same number as High-Yield Savings (`2000000007743`), see Known Failure Mode 5 before
-judging step 1.
+Failure Mode 11 first. Then, before step 1, record Vacation Savings' program link with SQL
+(`<db_access command>`) so step 4 can put it back:
+`SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
+'2000000000092';`
+The seed prints `NULL`. On k3d or local, any other value means the data no longer matches the
+seed: see Known Failure Mode 5 before judging step 1.
 
 1. Sign in as holder. PASS: a "Your programs" section sits below "Your accounts" with one card
    (`.program-card[data-program="REGULAR"]`) named "Regular", status "Requirements met", and
@@ -359,7 +357,7 @@ judging step 1.
    account, but 2 are linked."; the `.program-notice` ("Some of your program requirements aren't
    met. ...") shows near the top of the page; total assets and the three account cards are
    unchanged.
-4. Always restore Vacation Savings' value recorded before step 1, even after a failure:
+4. If step 3 ran, restore Vacation Savings' value recorded before step 1, even after a failure:
    `UPDATE account SET program_participation_id = <recorded value> WHERE account_number =
    '2000000000092';` (`<recorded value>` is `NULL` on the seed). Reload. PASS: back to the
    state in step 1.
@@ -398,14 +396,17 @@ judging step 1.
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
    idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
    leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
-   recorded value, later runs keep that link. The SELECT before W15 step 1 shows it: Vacation
-   Savings prints the same number as High-Yield Savings. Only that result marks it as leftover
-   data. The same screens (Vacation Savings listed under Regular with "Requirements not met", the
-   Regular card on its account page) with `NULL` recorded are a regression: FAIL them. When the
-   numbers match, W15 steps 1 to 4 cannot show the change from met to unmet that they test:
-   report them BLOCKED with that reason rather than FAIL, still run steps 5 and 6, and give the
-   user the statement that returns the seed state instead of running it:
+   recorded value, later runs keep that link. The app writes program links only when it seeds an
+   empty database, so on a database seeded before this run a value other than `NULL` recorded
+   before W15 step 1 is existing data, not a regression. W15 steps 1 to 4 then cannot show the
+   change from met to unmet that they test: report them BLOCKED with the recorded value as the
+   reason rather than FAIL, and give the user the statement that returns the seed state instead
+   of running it:
    `UPDATE account SET program_participation_id = NULL WHERE account_number = '2000000000092';`
+   Still sign in as holder and note Jordan's account links from the dashboard, then run steps 5
+   and 6 as usual. With `NULL` recorded, or on a database the build under test seeded (`ci` on
+   every run, k3d or local after a purge), judge the steps as written: Vacation Savings listed
+   under Regular is then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number

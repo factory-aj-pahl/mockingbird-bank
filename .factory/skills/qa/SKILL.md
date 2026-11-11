@@ -129,7 +129,7 @@ Evidence quality rules: focus on the relevant content, label each snapshot (what
 
 Never silently skip a flow. If a flow cannot complete, report it as BLOCKED with what was tried and how the user can fix it, then continue with the next flow -- never abort the whole run for a single failure.
 
-Always run cleanup before finishing, even after failures: the `other_holder` cleanup SQL if it was seeded, the W15 restore statement if Vacation Savings was linked into Jordan's program, any feature-flag override restored, the theme set back to light.
+Always run cleanup before finishing, even after failures: the `other_holder` cleanup SQL if it was seeded, W15 step 4 if this run ran W15 step 3 (it puts back the Vacation Savings link recorded before step 1; a link that was there before the run is never cleared), any feature-flag override restored, the theme set back to light.
 
 ## Step 9: Generate Report
 
