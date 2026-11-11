@@ -44,6 +44,7 @@ environments:
       docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
     restrictions:
       - The compose volume persists between runs - always run the qa-web cleanup SQL after seeding.
+      - Never run docker compose down -v without the user asking for it.
   lab:
     url: '' # Harness/MetalLB deploy; no URL is checked in. Ask the user for it.
     description: Shared LAB deployment (external Postgres). Runs master, not a PR branch.

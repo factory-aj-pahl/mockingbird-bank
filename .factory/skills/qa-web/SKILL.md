@@ -399,15 +399,17 @@ The seed prints `NULL`; for any other value, see Known Failure Mode 5 before jud
    recorded before W15 step 1 can be that leftover link or one the code under test wrote, and
    the run cannot tell which. Report W15 steps 1 to 4 BLOCKED with the recorded value as the
    reason rather than FAIL, also after a purge in this run. Under Action Required, ask the user to
-   purge the database (`k3d-deploy.sh down --purge-db`; for local, stop any app they started and
-   run `docker compose down -v`) and rerun /qa, which then starts the app and seeds the database
-   again. If this run already purged it, say instead that the link came back after the purge. A
-   link that comes back after a purge points at the code under test; the `ci` run, which starts
-   from a new database, judges it. Don't suggest clearing the link by hand: that doesn't reseed,
-   so a later PASS wouldn't show that the code under test leaves Vacation Savings unlinked. Still
-   sign in as holder and note Jordan's account links from the dashboard, then run steps 5 and 6
-   as usual. On `ci` the database is new every run, so judge the steps as written there:
-   Vacation Savings listed under Regular is then a FAIL.
+   purge the database (`k3d-deploy.sh down --purge-db`; for local, stop whatever serves :8080,
+   including a `dev-up.sh` left by an earlier /qa run, and run `docker compose down -v`) and rerun
+   /qa, which then starts the app and seeds the database again. Never purge without the user
+   asking for it. If the value was recorded after a purge the user agreed to in this run, say
+   instead that the link came back after the purge. A link that comes back after a purge points
+   at the code under test; the `ci` run, which starts from a new database, judges it. Don't
+   suggest clearing the link by hand: that doesn't reseed, so a later PASS wouldn't show that the
+   code under test leaves Vacation Savings unlinked. Still sign in as holder and note Jordan's
+   account links from the dashboard, then run steps 5 and 6 as usual. On `ci` the database is
+   new every run, so judge the steps as written there: Vacation Savings listed under Regular is
+   then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
