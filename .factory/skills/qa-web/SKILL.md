@@ -48,7 +48,10 @@ also exports `QA_APP_JAR`, `QA_APP_PID_FILE` and `QA_APP_LOG` for restarts (feat
    3) when the endpoint is unreachable, when `git.commit.id` differs from
    `git rev-parse --short HEAD`, or when `git status --porcelain` shows uncommitted changes in
    any `apps.web.path_patterns` path, or when the running `build.version` ends in `-dirty` (it
-   was built from uncommitted changes that may no longer be in the tree). The script prints the real URL; use it instead of the
+   was built from uncommitted changes that may no longer be in the tree). One exception: a
+   `-dirty` build this run deployed itself matches if, before that build, every entry of
+   `git status --porcelain --untracked-files=all` was outside `apps.web.path_patterns`; leave
+   those files alone. The script prints the real URL; use it instead of the
    config default if the port differs.
 4. Wait for `GET <url>/actuator/health` to return `"status":"UP"`.
 
@@ -340,9 +343,11 @@ Failure Mode 11 first. Then, before step 1, record Vacation Savings' program lin
 `SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
 '2000000000092';`
 The seed prints `NULL`; for any other value, see Known Failure Mode 5 before judging step 1.
-After an in-run reset or creation of an empty database on k3d or local, run this SELECT right
-after the app starts, before any flow that writes data (W11, W15 step 3), so Known Failure
-Mode 5 can use the value.
+When this run confirmed an empty database on k3d or local before its first app start (Known
+Failure Mode 5), run this SELECT right after that first start, before any W13 restart or rollout
+and before any flow that writes data (W11, W15 step 3); it is the recorded value. Save that
+start's log at the same time: on k3d a W13 rollout replaces the pod that seeded the database, and
+the new pod's log has no seed line.
 
 1. Sign in as holder. PASS: a "Your programs" section sits below "Your accounts" with one card
    (`.program-card[data-program="REGULAR"]`) named "Regular", status "Requirements met", and
@@ -401,51 +406,110 @@ Mode 5 can use the value.
    recorded value, later runs keep that link. On k3d or local, a value other than `NULL`
    recorded before W15 step 1 can be that leftover link or one the code under test wrote. Unless
    this run proved a fresh seed (below), it cannot tell which: report W15 steps 1 to 4 BLOCKED
-   with the recorded value as the reason rather than FAIL. That includes a database reset or
-   reseeded outside this run, reused storage (PVC or compose volume) without a reset this run
-   verified as empty, and an app this run didn't start. Under Action Required, ask the user to
-   reset the database, for example with `k3d-deploy.sh down --purge-db` (for local, stop whatever
-   serves :8080, including a `dev-up.sh` left by an earlier /qa run, and run `docker compose down
-   -v`), and rerun /qa, which then starts the app and seeds the database again. Never reset or
-   purge a database without the user asking for it. If the value was recorded after a reset the
-   user agreed to in this run but the fresh seed wasn't proved, say instead that the link came
-   back after the reset: it points at the code under test, and the `ci` run, which starts from a
-   new database, judges it.
+   with the recorded value as the reason rather than FAIL. That includes reused storage (PVC or
+   compose volume) this run didn't confirm as empty before its first app start, an app this run
+   didn't start, and a reset or reseed, by anyone, that this run's own empty check didn't
+   confirm. Under Action Required, ask the user to reset the database, for example with
+   `k3d-deploy.sh down --purge-db` (for local, stop whatever serves :8080, including a
+   `dev-up.sh` left by an earlier /qa run, and run `docker compose down -v`), and rerun /qa. The
+   rerun confirms the database is empty before it starts the app, so the user's reset counts
+   there. Never reset or purge a database without the user asking for it. If this run confirmed
+   the database empty before its first start but another item below wasn't met, say instead that
+   the link came back after the reset: it points at the code under test, and the `ci` run, which
+   starts from a new database, judges it.
 
    **Proven fresh seed.** This run judges a non-`NULL` value itself only when, in this run, it
    did all of the following and lists each item in the report. Never print a password or a full
    connection string for them.
-   - It got an empty target database: a reset the user agreed to in this run (for example
+   - It confirmed, with read-only checks before its first app start on the target database, that
+     the database was empty: no `account_holder` table, or no rows in it. This check is what
+     counts, whoever emptied the database: a reset the user did before this run (for example
+     after an earlier run's Action Required), a reset the user agreed to in this run (for example
      `k3d-deploy.sh down --purge-db`, `docker compose down -v`, or dropping and recreating the
-     database or schema), or a new, empty database created only for this run. Before the app
-     started, it verified with read-only checks that the target was empty: no `account_holder`
-     table, or no rows in it. After `k3d-deploy.sh down --purge-db`, a namespace that no longer
-     exists counts, since the next deploy creates a new PVC.
+     database or schema), or a new database this run created for itself (below). On k3d, a
+     `mockingbird-bank-dev` namespace that doesn't exist right before this run's `k3d-deploy.sh`
+     counts, since the deploy creates a new PVC. On local, start Postgres with `docker compose up
+     -d --wait` and run the check before `dev-up.sh`.
    - It noted which database the app uses, as host, port and database name (k3d: the
      `SPRING_DATASOURCE_URL` in `k8s/local/kustomization.yaml`, the namespace's `postgres`
      Service; local: `localhost:5432`, database `mydatabase`, unless `SPRING_DATASOURCE_*` is set
-     for `dev-up.sh`), and that the empty check and `<db_access command>` reach that database.
+     for `dev-up.sh`; for a database created for this run, its name), and that the empty check
+     and `<db_access command>` (for that database, the command below) reach that database.
      When the storage was recreated, a PVC `creationTimestamp` or compose volume `CreatedAt`
      (`docker volume inspect`) later than the reset can back this up, but isn't required.
-   - It started the build under test on that database itself (`k3d-deploy.sh`, or `dev-up.sh` on
-     local) from a clean tree: `/actuator/info` `git.commit.id` equals `git rev-parse --short
-     HEAD` and `build.version` doesn't end in `-dirty`. The log of that start has
-     DataInitializer's `Seeded DEMO logins` line, which it writes only when it seeds an empty
-     database.
-   - It recorded the W15 value right after that start. Between the reset or creation and that
-     record it wrote no QA data (no W11 seed, no W15 step 3, no other data-writing SQL); the
-     reset's own commands and the app's Flyway migration and seed are expected writes.
+   - It started the build under test on that database itself (`k3d-deploy.sh`, `dev-up.sh` on
+     local, or the `set env` rollout below) from `HEAD`: `/actuator/info` `git.commit.id` equals
+     `git rev-parse --short HEAD`, and `build.version` doesn't end in `-dirty`, or this run built
+     that artifact itself after checking that every entry of `git status --porcelain
+     --untracked-files=all` is outside `apps.web.path_patterns` (list those entries in the report
+     and leave them untouched). A `-dirty` image or app this run didn't build itself is not
+     proof. The log of that start has DataInitializer's `Seeded DEMO logins` line, which it
+     writes only when it seeds an empty database. Save that line before any W13 restart: on k3d,
+     read `kubectl --context k3d-dev-k8s -n mockingbird-bank-dev logs
+     deployment/mockingbird-app` right after the rollout that seeded, since a W13 `set env`
+     rollout replaces that pod and the new pod logs no seed line.
+   - It recorded the W15 value right after that start, before any W13 restart. Between the reset
+     or creation and that record it wrote no QA data (no W11 seed, no W15 step 3, no other
+     data-writing SQL); the reset's own commands and the app's Flyway migration and seed are
+     expected writes.
 
    Then the build under test wrote the value. Judge steps 1 and 2 as written: Vacation Savings
    listed under Regular, or a program on its account page, is a FAIL. Report steps 3 and 4
    BLOCKED, since both start from the seed's unlinked Vacation Savings, and run steps 5 and 6 as
-   usual.
+   usual. For steps 3 and 4, say under Action Required how to make them runnable: fix the bug
+   behind the step 1 or 2 FAIL (listed there too), then reset the database and rerun /qa.
 
    Don't suggest clearing the link by hand: that doesn't reseed, so a later PASS wouldn't show
    that the code under test leaves Vacation Savings unlinked. When steps 1 to 4 are BLOCKED,
    still sign in as holder and note Jordan's account links from the dashboard, then run steps 5
    and 6 as usual. On `ci` the database is new every run, so judge the steps as written there:
    Vacation Savings listed under Regular is then a FAIL.
+
+   **A new database only for this run.** To leave the user's data untouched, a run can create its
+   own empty database in the target's Postgres instead of a reset, and point the build under test
+   at it before that build first starts there.
+   - Name it `qa_<short sha>_<RUN_ID>`, with each `-` in `RUN_ID` replaced by `_`, so no other run
+     uses the name. Create it with plain `createdb -U "$POSTGRES_USER" <name>`, which fails if the
+     name exists and never replaces a database. Only when it succeeds, record the name as this
+     run's own database. If it fails, this run owns nothing: never point the app at that name,
+     drop it or end its sessions. Try once more with `_<random number>` appended to the name; if
+     that fails too, don't use this option, say why in the report, and let the rules above decide
+     W15 steps 1 to 4.
+   - For every SQL in the run (the empty check, W11 seed and cleanup, W15) use the target's
+     `db_access` command with `-d "$POSTGRES_DB"` replaced by `-d <name>`.
+   - local: run `docker compose up -d --wait` (Postgres only), create the database with `docker
+     compose exec -T postgres sh -c 'createdb -U "$POSTGRES_USER" <name>'`, run the empty check,
+     then start `dev-up.sh` with `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/<name>`
+     and keep the variable on every W13 restart.
+   - k3d: only when Testing Target needs no redeploy (the running app's `git.commit.id` equals
+     `git rev-parse --short HEAD` and its `build.version` has no `-dirty`), because
+     `k3d-deploy.sh` would first start the build under test on the user's database. Otherwise use
+     the local steps above or the rules above. Before any change, record whether the deployment
+     sets `SPRING_DATASOURCE_URL` itself, and to what: `kubectl --context k3d-dev-k8s -n
+     mockingbird-bank-dev get deployment/mockingbird-app -o
+     jsonpath='{.spec.template.spec.containers[?(@.name=="app")].env[?(@.name=="SPRING_DATASOURCE_URL")]}'`
+     (empty output: not set, so the ConfigMap's value applies). If it is set from anything other
+     than a plain `value`, don't use this option on k3d. Create the database with `kubectl
+     --context k3d-dev-k8s -n mockingbird-bank-dev exec -i statefulset/postgres -- sh -c
+     'createdb -U "$POSTGRES_USER" <name>'`, run the empty check, then `kubectl --context
+     k3d-dev-k8s -n mockingbird-bank-dev set env deployment/mockingbird-app
+     SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/<name>` and wait for `rollout status`.
+     That rollout is the first start on the new database; the variable overrides the ConfigMap's
+     value and stays through W13 `set env` changes.
+
+   Teardown runs with the run's cleanup, also after a failure, after the W11 cleanup and W15 step
+   4, and only for a database this run recorded as its own. Note each step in the report.
+   1. Stop what uses it and restore the app's route. local: stop the `dev-up.sh` you started and
+      check that :8080 no longer answers. k3d: put back the recorded state (`set env
+      deployment/mockingbird-app SPRING_DATASOURCE_URL=<recorded value>`, or
+      `SPRING_DATASOURCE_URL-` only if it wasn't set), wait for `rollout status`, and run the same
+      `get` again: its output must match the record exactly.
+   2. If step 1 failed or doesn't match, leave the database in place, report its name and what
+      failed under Action Required, and stop the teardown there.
+   3. Drop only the recorded name, and only if it starts with `qa_` and isn't `mydatabase`,
+      `mockingbirdbank`, `postgres`, `template0` or `template1`: the `createdb` command above
+      with `dropdb -U "$POSTGRES_USER" <name>` in its place, without `--force`. If it reports open
+      connections, leave the database and report it.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number

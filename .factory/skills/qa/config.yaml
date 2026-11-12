@@ -142,7 +142,9 @@ cleanup:
     and k3d and local keep their data between runs, so undo both on every target: run the
     other_holder cleanup_sql after the cross-account flow (W11), and, if W15 step 3 ran, run W15
     step 4 after the account programs flow (it puts back the Vacation Savings link W15 recorded
-    before step 1; a link that was there before the run is never cleared). Restore any
+    before step 1; a link that was there before the run is never cleared). A run that created
+    its own database (qa-web Known Failure Mode 5) made a third change: restore the app's exact
+    previous datasource setting, then drop only that database, as that section says. Restore any
     feature-flag override and the light theme before finishing.
 
 failure_learning: suggest_in_report
