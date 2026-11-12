@@ -111,7 +111,7 @@ A missing account and someone else's account fail in exactly the same way, with 
 
 ## Account detail ownership check
 
-`AccountDetailView.setParameter` calls `AccountService.requireAccount(accountId)` before it loads anything else. `requireAccount` resolves `currentHolder()`, loads the account with `findById` inside the `accounts` circuit breaker, and keeps it only if `isOwnedBy` matches the holder IDs. A missing account and another holder's account both throw `IllegalArgumentException("No such account: <id>")`. The view turns that into Vaadin's not-found page and records `account.viewed` with reason `not_found`, so the two cases look the same and the page cannot be used to find out which account IDs exist.
+`AccountDetailView.setParameter` calls `AccountService.requireAccount(accountId)` before it loads anything else. A path segment that is not a number that fits a `long` gets the same not-found page without any service call. `requireAccount` resolves `currentHolder()`, loads the account with `findById` inside the `accounts` circuit breaker, and keeps it only if `isOwnedBy` matches the holder IDs. A missing account and another holder's account both throw `IllegalArgumentException("No such account: <id>")`. The view turns that into Vaadin's not-found page and records `account.viewed` with reason `not_found`, so the two cases look the same and the page cannot be used to find out which account IDs exist.
 
 `TransactionService.forAccount(accountId)` has no ownership check of its own. Its only caller is `AccountDetailView`, which calls it only after `requireAccount` has returned the account, so it never runs with an unchecked ID today. A new caller must check ownership first, or the check should move into `forAccount`.
 

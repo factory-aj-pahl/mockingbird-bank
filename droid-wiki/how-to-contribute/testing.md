@@ -1,6 +1,6 @@
 # Testing
 
-The suite has 23 JUnit classes (103 test methods) under `src/test/java/com/mockingbirdbank/`, mirroring the main packages, plus a 4-test Playwright suite in `qa/` that drives a real browser. `./gradlew test` runs the JUnit side and needs Docker for the Testcontainers-backed classes.
+The suite has 24 JUnit classes (109 test methods) under `src/test/java/com/mockingbirdbank/`, mirroring the main packages, plus a 4-test Playwright suite in `qa/` that drives a real browser. `./gradlew test` runs the JUnit side and needs Docker for the Testcontainers-backed classes.
 
 ## Test layers
 
@@ -110,6 +110,7 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagServiceTest.java` | JUnit | Defaults, overrides, `allFlags()` |
 | `src/test/java/com/mockingbirdbank/config/FeatureFlagsEndpointTest.java` | JUnit | Endpoint delegates to the service |
 | `src/test/java/com/mockingbirdbank/config/BusinessClockConfigTest.java` | JUnit | The business clock runs on America/New_York |
+| `src/test/java/com/mockingbirdbank/ui/view/AccountDetailViewTest.java` | Mockito + Vaadin route registry | Any single segment under `accounts` routes to the view; non-numeric, empty, out-of-range and non-ASCII-digit IDs give the not-found page with no service call; unknown or foreign ID; own account |
 | `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | Mockito | `showAccountCount` line (singular, plural, no extra `AccountService` calls, absent when the flag is off) and `showAccountPrograms` (off, cards and notice, no notice when met, none, unavailable for an open breaker and for a database error) |
 | `src/test/java/com/mockingbirdbank/ui/view/ProgramCardTest.java` | JUnit | Program card links, status pill, unmet rules |
 | `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java` | JUnit | Program read fallback: open breaker and database errors give an empty result and a `programs.unavailable` count, other exceptions propagate |
@@ -117,7 +118,7 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 
 ## Known gaps
 
-- `DashboardViewTest`, `ProgramCardTest` and `ProgramLookupTest` are the only JUnit tests in `com.mockingbirdbank.ui`. `AccountDetailView` has no unit test; its program section's fallback is `ProgramLookup`, which `ProgramLookupTest` covers. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
+- `AccountDetailViewTest`, `DashboardViewTest`, `ProgramCardTest` and `ProgramLookupTest` are the only JUnit tests in `com.mockingbirdbank.ui`. `AccountDetailViewTest` does not cover the program section; its fallback is `ProgramLookup`, which `ProgramLookupTest` covers. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
 - `CircuitBreakerBehaviorTest` checks tripping only, not recovery through half-open, although `AGENTS.md` says it verifies both.
 - `AccountServiceTest.requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne` covers the ownership check at the service level, but no test drives `/accounts/{id}` for another holder's account end to end, and the Playwright suite signs in only as `jordan.ellis`. See [Security](../security.md#account-detail-ownership-check).
 - The Playwright suite runs only on demand. The post-publish smoke test in `.github/workflows/publish-image.yml` checks only that the image boots and is healthy.

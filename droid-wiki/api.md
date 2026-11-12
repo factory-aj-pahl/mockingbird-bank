@@ -12,9 +12,9 @@ These are browser pages, not API endpoints. Each one is a Java class with a `@Ro
 | --- | --- | --- | --- |
 | `/login` | `src/main/java/com/mockingbirdbank/ui/view/LoginView.java` | Public (`@AnonymousAllowed`) | `LoginOverlay` that posts `username` and `password` to `/login`. `?error` shows the error state. See [Sign-in](features/sign-in.md). |
 | `/` and `/accounts` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Signed in (`@PermitAll`) | `@Route("accounts")` plus `@RouteAlias("")`. See [Dashboard](features/dashboard.md). |
-| `/accounts/{id}` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Signed in (`@PermitAll`) | Same `accounts` path, told apart by the `HasUrlParameter<Long>` parameter. Only the signed-in holder's own accounts; another holder's account ID gets the not-found page, see [the ownership check](security.md#account-detail-ownership-check). See [Account detail](features/account-detail.md). |
+| `/accounts/{id}` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Signed in (`@PermitAll`) | Same `accounts` path, told apart by the `HasUrlParameter<String>` parameter (one path segment), which the view parses into an account ID. Only the signed-in holder's own accounts; another holder's account ID gets the not-found page, see [the ownership check](security.md#account-detail-ownership-check). See [Account detail](features/account-detail.md). |
 
-Both signed-in views render inside `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java`, which carries its own `@PermitAll`. An anonymous request to either redirects to `/login` (asserted by `ApplicationSmokeTest.unauthenticatedRequestToAccountsRedirectsToLogin`). An unknown account ID ends in Vaadin's not-found page; a non-numeric one such as `/accounts/abc` fails parameter conversion before the view runs.
+Both signed-in views render inside `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java`, which carries its own `@PermitAll`. An anonymous request to either redirects to `/login` (asserted by `ApplicationSmokeTest.unauthenticatedRequestToAccountsRedirectsToLogin`). An unknown account ID, and a non-numeric one such as `/accounts/abc`, ends in Vaadin's not-found page.
 
 Sign out has no route of its own. The Sign out button in `MainLayout` calls Vaadin's `AuthenticationContext.logout()`.
 

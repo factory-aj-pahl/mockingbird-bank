@@ -25,7 +25,7 @@ Useful events when debugging:
 | Event | Meaning |
 | --- | --- |
 | `user.login` with `outcome=error` | Failed sign-in, `reason` is the Spring Security exception simple name |
-| `account.viewed` with `reason=not_found` | `/accounts/{id}` for an ID that does not exist |
+| `account.viewed` with `reason=not_found` | `/accounts/{id}` for an ID that does not exist, belongs to another holder, or is not a number that fits a `long` (then with no `accountId` attribute) |
 | `account_number.revealed` with `reason=forbidden` | Reveal attempted for an account the user does not own |
 | `ui.unhandled_exception` | Any exception that escaped a view, `reason` is the exception type |
 | `programs.unavailable` | A program section showed "Programs can't be shown right now"; `reason` is `ServiceUnavailableException` for an open `programs` breaker, otherwise the database exception type, which `ProgramLookup` also logs at WARN |

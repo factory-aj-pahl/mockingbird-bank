@@ -19,23 +19,34 @@ import com.vaadin.flow.router.BeforeEvent;
 import com.vaadin.flow.router.HasUrlParameter;
 import com.vaadin.flow.router.NotFoundException;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.RouteParameterRegex;
 import jakarta.annotation.security.PermitAll;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * The transaction history for one account, at /accounts/{id}. Mirrors the "Account Detail" artboard
  * in the design mockup.
+ *
+ * <p>The ID arrives as a {@code String} and is parsed here. With a {@code Long} URL parameter, a
+ * non-numeric ID such as {@code /accounts/abc} would match no route, and {@code
+ * VaadinSecurityConfigurer} denies a path that matches no route with a 403 even for a signed-in
+ * user. Parsing it here gives such an ID the same not-found page as an unknown numeric one.
  */
 @Route(value = "accounts", layout = MainLayout.class)
 @PermitAll
-public class AccountDetailView extends VerticalLayout implements HasUrlParameter<Long> {
+public class AccountDetailView extends VerticalLayout implements HasUrlParameter<String> {
 
     private static final NumberFormat USD = NumberFormat.getCurrencyInstance(Locale.US);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("MM/dd/yyyy");
+    // What a Long URL parameter accepts. Long.valueOf alone would also accept non-ASCII digits,
+    // such as Arabic-Indic ones.
+    private static final Pattern ACCOUNT_ID = Pattern.compile(RouteParameterRegex.LONG);
 
     private final AccountService accountService;
     private final TransactionService transactionService;
@@ -60,14 +71,18 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
     }
 
     @Override
-    public void setParameter(BeforeEvent event, Long accountId) {
+    public void setParameter(BeforeEvent event, String parameter) {
+        Optional<Long> parsed = parseAccountId(parameter);
+        if (parsed.isEmpty()) {
+            // The raw path segment is user input, so it is not written to the event log.
+            throw notFound(Map.of());
+        }
+        long accountId = parsed.get();
         Account account;
         try {
             account = accountService.requireAccount(accountId);
         } catch (IllegalArgumentException e) {
-            analytics.trackError(
-                    "account.viewed", "not_found", Map.of("accountId", String.valueOf(accountId)));
-            throw new NotFoundException("No such account");
+            throw notFound(Map.of("accountId", String.valueOf(accountId)));
         }
         analytics.track("account.viewed", Map.of("accountId", String.valueOf(accountId)));
 
@@ -78,6 +93,23 @@ public class AccountDetailView extends VerticalLayout implements HasUrlParameter
             add(programSection(account));
         }
         add(transactionTable(transactionService.forAccount(accountId)));
+    }
+
+    /** The account ID in {@code parameter}, or empty if it is not a number that fits a long. */
+    static Optional<Long> parseAccountId(String parameter) {
+        if (!ACCOUNT_ID.matcher(parameter).matches()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Long.valueOf(parameter));
+        } catch (NumberFormatException e) {
+            return Optional.empty();
+        }
+    }
+
+    private NotFoundException notFound(Map<String, String> attributes) {
+        analytics.trackError("account.viewed", "not_found", attributes);
+        return new NotFoundException("No such account");
     }
 
     private VerticalLayout programSection(Account account) {

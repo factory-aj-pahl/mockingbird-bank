@@ -12,7 +12,7 @@ Let the holder read every transaction on one account. The layout follows the "Ac
 
 | Class | File | Role |
 | --- | --- | --- |
-| `AccountDetailView` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | The route. Implements `HasUrlParameter<Long>` and builds the page in `setParameter`. |
+| `AccountDetailView` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | The route. Implements `HasUrlParameter<String>`, turns the parameter into an account ID with `parseAccountId`, and builds the page in `setParameter`. |
 | `AccountService.requireAccount` | `src/main/java/com/mockingbirdbank/service/AccountService.java` | Loads one of the signed-in holder's own accounts by ID. Throws `IllegalArgumentException` for a missing account and for another holder's account alike. |
 | `TransactionService.forAccount` | `src/main/java/com/mockingbirdbank/service/TransactionService.java` | Returns the account's transactions ordered by `postedAt` descending, inside the `transactions` circuit breaker. |
 | `TransactionRepository` | `src/main/java/com/mockingbirdbank/repository/TransactionRepository.java` | `findByAccountIdOrderByPostedAtDesc`. |
@@ -23,7 +23,7 @@ Let the holder read every transaction on one account. The layout follows the "Ac
 
 ## How it works
 
-`AccountDetailView` is `@Route(value = "accounts", layout = MainLayout.class)` and `@PermitAll`. It shares the `accounts` path with `DashboardView`; Vaadin tells them apart because this view requires a `Long` URL parameter, so `/accounts` is the dashboard and `/accounts/7` is this view.
+`AccountDetailView` is `@Route(value = "accounts", layout = MainLayout.class)` and `@PermitAll`. It shares the `accounts` path with `DashboardView`; Vaadin tells them apart because this view requires a URL parameter, so `/accounts` is the dashboard and any single segment below it, such as `/accounts/7` or `/accounts/abc`, is this view. The parameter is a `String`. `parseAccountId` accepts what Vaadin accepts for a `Long` URL parameter (`RouteParameterRegex.LONG`: up to 19 ASCII digits with an optional sign) when the value fits a `long`, so non-ASCII digits such as Arabic-Indic ones are not an ID. The class Javadoc explains why it is not a `Long` parameter: with one, a non-numeric segment would match no route, and `VaadinSecurityConfigurer` answers a path that matches no route with 403 Forbidden, even for a signed-in user.
 
 ```mermaid
 sequenceDiagram
@@ -33,20 +33,24 @@ sequenceDiagram
     participant P as ProgramService
     participant T as TransactionService
     participant E as AnalyticsEventService
-    B->>V: navigate /accounts/7
-    V->>A: requireAccount 7
-    alt no such account, or another holder's account
+    B->>V: navigate /accounts/{segment}
+    alt the segment is not a number that fits a long
+        V->>E: trackError account.viewed not_found, no attributes
+        V-->>B: NotFoundException, Vaadin not-found page
+    else no such account, or another holder's account
+        V->>A: requireAccount id
         A-->>V: IllegalArgumentException
         V->>E: trackError account.viewed not_found
         V-->>B: NotFoundException, Vaadin not-found page
     else the signed-in holder's account
+        V->>A: requireAccount id
         A-->>V: Account
         V->>E: track account.viewed accountId
         opt showAccountPrograms on
             V->>P: evaluationFor account
             P-->>V: the account's program, if any
         end
-        V->>T: forAccount 7
+        V->>T: forAccount id
         T-->>V: transactions newest first
         V-->>B: back link, header, program section, grid
     end
@@ -72,7 +76,7 @@ Amounts are signed (negative is a debit), so debits render with a minus sign fro
 
 ### Not-found handling
 
-`requireAccount` throws `IllegalArgumentException("No such account: …")` for an unknown ID and for an account that belongs to another holder. The view catches it, records `account.viewed` with outcome error and reason `not_found` (attribute `accountId`), and throws Vaadin's `NotFoundException`, which renders Vaadin's standard not-found response. A non-numeric ID such as `/accounts/abc` fails Vaadin's `Long` parameter conversion before `setParameter` runs, so it is not tracked.
+`requireAccount` throws `IllegalArgumentException("No such account: …")` for an unknown ID and for an account that belongs to another holder. The view catches it, records `account.viewed` with outcome error and reason `not_found` (attribute `accountId`), and throws Vaadin's `NotFoundException`, which renders Vaadin's standard not-found response. A non-numeric ID such as `/accounts/abc`, or a number too large for a `long`, gets the same not-found page without any service call. It is recorded as `account.viewed` / `not_found` with no attributes, because the raw path segment is user input and is not written to the event log.
 
 ### Ownership
 
@@ -93,6 +97,7 @@ Amounts are signed (negative is a debit), so debits render with a minus sign fro
 
 ## Testing
 
+- `src/test/java/com/mockingbirdbank/ui/view/AccountDetailViewTest.java`: every single segment under `accounts` routes to this view and a longer path does not; non-numeric, empty and out-of-range IDs get the not-found page with no service call; non-ASCII digits are not an ID; an unknown or foreign ID gets the not-found page with `accountId`; the signed-in holder's own account renders.
 - `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java`: `requireAccountThrowsForUnknownId`, `requireAccountReturnsSignedInHoldersOwnAccount`, `requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne`.
 - `src/test/java/com/mockingbirdbank/service/TransactionServiceTest.java`: `forAccount` delegates to the ordered repository query.
 - `qa/tests/dashboard.spec.ts`: clicks Everyday Checking, expects a URL matching `/accounts/.+` and the seeded "Trader Joe's" and "Direct Deposit - Bespin Engineering" rows.

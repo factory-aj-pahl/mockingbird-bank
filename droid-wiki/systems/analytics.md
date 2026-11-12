@@ -106,8 +106,8 @@ Every `track`/`trackError` call in `src/main`:
 | Event | Outcome | Reason | Attributes | Emitted by |
 | --- | --- | --- | --- | --- |
 | `dashboard.viewed` | success | `n/a` | `accountCount` | `DashboardView` constructor, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:62` |
-| `account.viewed` | success | `n/a` | `accountId` | `AccountDetailView.setParameter`, `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:72` |
-| `account.viewed` | error | `not_found` | `accountId` | `AccountDetailView.setParameter` when `requireAccount` throws `IllegalArgumentException` (a missing account or another holder's account), `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:68` |
+| `account.viewed` | success | `n/a` | `accountId` | `AccountDetailView.setParameter`, `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:87` |
+| `account.viewed` | error | `not_found` | `accountId`, or none when the ID is not a number that fits a `long` | `AccountDetailView.notFound`, called from `setParameter` when the ID is not a number that fits a `long` or `requireAccount` throws `IllegalArgumentException` (a missing account or another holder's account), `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:111` |
 | `account_number.revealed` | success | `n/a` | `accountId`, `scope=single` | `AccountService.revealAccountNumber`, `src/main/java/com/mockingbirdbank/service/AccountService.java:94` |
 | `account_number.revealed` | success | `n/a` | `scope=all`, `accountCount` | `AccountService.revealAccountNumbers`, `src/main/java/com/mockingbirdbank/service/AccountService.java:107` |
 | `account_number.revealed` | error | `forbidden` | `accountId` | `AccountService.revealAccountNumber` when the account is missing or owned by someone else, `src/main/java/com/mockingbirdbank/service/AccountService.java:88` |

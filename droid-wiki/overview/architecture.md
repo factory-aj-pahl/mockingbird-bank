@@ -97,10 +97,10 @@ xychart-beta horizontal
     title "Tracked files by type"
     x-axis ["Java", "YAML", "Markdown", "Shell/zsh", "JSON", "Other"]
     y-axis "Files" 0 --> 70
-    bar [65, 30, 10, 8, 5, 20]
+    bar [66, 30, 10, 8, 5, 20]
 ```
 
-Java splits into 42 main source files and 23 test files. See [By the numbers](../by-the-numbers.md) for line counts.
+Java splits into 42 main source files and 24 test files. See [By the numbers](../by-the-numbers.md) for line counts.
 
 ## Design choices worth knowing
 
