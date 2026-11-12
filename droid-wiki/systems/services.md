@@ -27,7 +27,7 @@ src/test/java/com/mockingbirdbank/service/
   AccountTransactionQueryPerformanceTest.java  Testcontainers N+1 guard
 ```
 
-The package has 4 main files (423 lines) and 4 test files (679 lines), about 1.6 test lines per main line.
+The package has 4 main files (425 lines) and 4 test files (677 lines), about 1.6 test lines per main line.
 
 ## Key abstractions
 

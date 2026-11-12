@@ -9,7 +9,7 @@ The application code lives in nine packages under `src/main/java/com/mockingbird
 | Package | Main files | Main lines | Test files | Test lines | What it holds | Covered in |
 | --- | --- | --- | --- | --- | --- | --- |
 | `com.mockingbirdbank` (root) | 1 | 15 | 2 | 360 | `Application` entry point with `@Theme("mockingbird")` | [UI](ui.md) |
-| `ui` (`layout/`, `view/`) | 9 | 1,168 | 3 | 378 | Vaadin routes, the shared top bar, account cards, the number reveal component, program cards | [UI](ui.md) |
+| `ui` (`layout/`, `view/`) | 9 | 1,169 | 3 | 378 | Vaadin routes, the shared top bar, account cards, the number reveal component, program cards | [UI](ui.md) |
 | `service` | 4 | 425 | 4 | 677 | `AccountService`, `TransactionService`, `ProgramService`, `ProgramEvaluation` | [Services](services.md) |
 | `model` | 7 | 365 | 2 | 109 | JPA entities and the `AccountType` and `ProgramType` enums | [Persistence](persistence.md) |
 | `repository` | 5 | 46 | 0 | 0 | Spring Data JPA interfaces | [Persistence](persistence.md) |
@@ -18,11 +18,11 @@ The application code lives in nine packages under `src/main/java/com/mockingbird
 | `resilience` | 2 | 59 | 1 | 82 | Circuit breaker config, `ServiceUnavailableException` | [Resilience](resilience.md) |
 | `observability` | 3 | 212 | 3 | 248 | Correlation IDs, JFR profiling endpoint, `BuildVersion` | [Observability](observability.md) |
 | `config` (incl. `config/logging/`) | 6 | 408 | 4 | 150 | Feature flags, `DataInitializer` seeding, `BusinessClockConfig`, `ScrubbingMessageConverter` | [Feature flags](../features/feature-flags.md), [Persistence](persistence.md#seeding), [Security](../security.md) |
-| **Total** | **42** | **2,972** | **23** | **2,287** | | |
+| **Total** | **42** | **2,973** | **23** | **2,287** | | |
 
 Counts are of the `.java` files under `src/main/java` and `src/test/java`, by package directory.
 
-The test-to-code ratio is 0.77 by lines (2,287 test lines for 2,972 main lines) and 0.55 by files. That average hides a split: the `ui` package has 1,168 lines and only three unit test classes (`DashboardViewTest` for the account count line and programs section, `ProgramCardTest` for the program card, `ProgramLookupTest` for the program read fallback), while `service` has 1.6 test lines per main line. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
+The test-to-code ratio is 0.77 by lines (2,287 test lines for 2,973 main lines) and 0.55 by files. That average hides a split: the `ui` package has 1,169 lines and only three unit test classes (`DashboardViewTest` for the account count line and programs section, `ProgramCardTest` for the program card, `ProgramLookupTest` for the program read fallback), while `service` has 1.6 test lines per main line. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
 
 ## Layering
 

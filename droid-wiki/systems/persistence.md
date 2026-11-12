@@ -21,7 +21,7 @@ src/main/resources/
   db/migration/V2__account_programs.sql
 ```
 
-`model` has 7 files (354 lines) and 2 test files (`AccountTest`, `TransactionTest`). `repository` has 5 interfaces (46 lines) and no tests of its own; they are exercised by the Testcontainers tests and mocked in the service tests.
+`model` has 7 files (365 lines) and 2 test files (`AccountTest`, `TransactionTest`). `repository` has 5 interfaces (46 lines) and no tests of its own; they are exercised by the Testcontainers tests and mocked in the service tests.
 
 ## Key abstractions
 

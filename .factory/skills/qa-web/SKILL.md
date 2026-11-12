@@ -131,7 +131,7 @@ diff could have caused.
 | `ui/view/DashboardView.java`, `ui/view/AccountCard.java` | W4, W6, W15, W5 (adjacent) |
 | `ui/view/AccountDetailView.java`, `service/TransactionService.java` | W5, W10, W11, W15 |
 | `ui/view/AccountNumberDisplay.java`, `AccountService.reveal*` | W6, W11 |
-| `service/AccountService.java`, `model/**`, `repository/**`, `db/migration/**` | W4, W5, W10, W11 |
+| `service/AccountService.java`, `model/**`, `repository/**`, `db/migration/**` | W4, W5, W10, W11, W15 |
 | `config/DataInitializer.java` | W2, W4, W5, W15 |
 | `service/Program*.java`, `ui/view/ProgramCard.java`, `ui/view/ProgramLookup.java`, `model/Program*.java`, `config/BusinessClockConfig.java` | W15, W13 |
 | `ui/layout/MainLayout.java`, `ui/layout/BirdMark.java` | W7, W8, W9, W4 (adjacent) |

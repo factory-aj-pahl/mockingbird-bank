@@ -96,11 +96,11 @@ By file count the repository is mostly configuration and automation around a sma
 xychart-beta horizontal
     title "Tracked files by type"
     x-axis ["Java", "YAML", "Markdown", "Shell/zsh", "JSON", "Other"]
-    y-axis "Files" 0 --> 60
-    bar [63, 30, 10, 8, 5, 20]
+    y-axis "Files" 0 --> 70
+    bar [65, 30, 10, 8, 5, 20]
 ```
 
-Java splits into 41 main source files and 22 test files. See [By the numbers](../by-the-numbers.md) for line counts.
+Java splits into 42 main source files and 23 test files. See [By the numbers](../by-the-numbers.md) for line counts.
 
 ## Design choices worth knowing
 

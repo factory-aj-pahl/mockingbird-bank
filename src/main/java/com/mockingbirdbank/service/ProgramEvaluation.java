@@ -10,7 +10,7 @@ import java.util.Objects;
  * customer-facing message for every rule that is not met. No messages means the rules are met.
  *
  * @param accounts the participating accounts owned by the participation's customer; an account of
- *     another customer is never included, only reported in {@code unmetRules}
+ *     another customer is left out and counts toward no rule
  */
 public record ProgramEvaluation(
         ProgramType programType, List<Account> accounts, List<String> unmetRules) {
