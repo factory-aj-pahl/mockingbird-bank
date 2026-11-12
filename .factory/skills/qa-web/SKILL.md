@@ -51,17 +51,6 @@ also exports `QA_APP_JAR`, `QA_APP_PID_FILE` and `QA_APP_LOG` for restarts (feat
    was built from uncommitted changes that may no longer be in the tree). The script prints the real URL; use it instead of the
    config default if the port differs.
 4. Wait for `GET <url>/actuator/health` to return `"status":"UP"`.
-5. If step 3 deployed, read that start's log (`kubectl --context k3d-dev-k8s -n
-   mockingbird-bank-dev logs deployment/mockingbird-app`) until it has BuildVersion's
-   `Mockingbird Bank <version> started (commit ...)` line, within step 3's time allowance. Health
-   can be UP before DataInitializer has run; that line comes after it. If the line never appears,
-   the start failed: report it as a failed pre-flight check. Then save that complete log: a W13
-   flag rollout replaces that pod, and the new pod's log has no seed line. Do this whether or not
-   the run later picks W15, since flows are picked after these checks. If the log has
-   DataInitializer's `Seeded DEMO logins` line, run W15's program-link SELECT now, before any
-   flow, flag change or other SQL: it is W15's recorded value (Known Failure Mode 5). The SELECT
-   only reads. If it can't run (for example `<db_access command>` fails), note the value as not
-   collected and go on: that doesn't fail the pre-flight check.
 
 **`local` (fallback)** - `./scripts/dev-up.sh` starts the docker-compose Postgres and
 `./gradlew bootRun` on :8080 from the working tree.
@@ -72,12 +61,6 @@ also exports `QA_APP_JAR`, `QA_APP_PID_FILE` and `QA_APP_LOG` for restarts (feat
 2. Otherwise start `./scripts/dev-up.sh` as a long-running background process (use your shell
    tool's background/fire-and-forget mode, not plain `&`) and poll `/actuator/health` for up
    to 5 minutes. Stop it when the run is over.
-3. If step 2 started `dev-up.sh`, wait in its output for the
-   `Mockingbird Bank <version> started (commit ...)` line within the same 5 minutes, as in k3d
-   step 5 (a missing line is a failed start there too). Then keep that complete output, whichever
-   flows are picked later (a W13 restart starts a new process whose output has no seed line). If
-   it has DataInitializer's `Seeded DEMO logins` line, run W15's program-link SELECT now, as in
-   k3d step 5, which also says what to do when it can't run.
 
 Never use `lab` for branch QA (see its restrictions in config.yaml).
 
@@ -357,8 +340,6 @@ Failure Mode 11 first. Then, before step 1, record Vacation Savings' program lin
 `SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
 '2000000000092';`
 The seed prints `NULL`; for any other value, see Known Failure Mode 5 before judging step 1.
-If Testing Target already ran this SELECT right after this run's seeding start (k3d step 5,
-local step 3), that value is the recorded value: don't record it again.
 
 1. Sign in as holder. PASS: a "Your programs" section sits below "Your accounts" with one card
    (`.program-card[data-program="REGULAR"]`) named "Regular", status "Requirements met", and
@@ -409,99 +390,20 @@ local step 3), that value is the recorded value: don't record it again.
 4. **Seeding order.** Seeding the `other_holder` before the app's first start on an empty
    database prevents DataInitializer from creating Jordan (it only runs when
    `account_holder` is empty). If sign-in fails with valid credentials and the holder is missing,
-   run the cleanup SQL and restart the app. Suggest a database reset only as the reset rule in
-   Known Failure Mode 5 allows.
+   run the cleanup SQL and restart the app, or ask the user before `k3d-deploy.sh down --purge-db`.
 5. **Persistent databases.** k3d (PVC) and local (compose volume) keep data between runs. A
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
    idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
    leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
    recorded value, later runs keep that link. On k3d or local, a value other than `NULL`
-   recorded before W15 step 1 can be that leftover link or one the code under test wrote. Unless
-   this run proved a fresh seed (below), it cannot tell which: report W15 steps 1 to 4 BLOCKED
-   with the recorded value as the reason rather than FAIL. When no start in this run logged the
-   seed line, as with an app this run didn't start or reused storage (PVC or compose volume) that
-   already had data, a reset of the app's database lets a rerun prove a fresh seed. Suggest one
-   only as the reset rule below allows, followed by a rerun of /qa: both reset commands also
-   remove the running app, so the rerun's Testing Target starts the build under test on the empty
-   database and records the seed line and the value there. If this run's start logged the seed
-   line but another item below wasn't met, the steps stay BLOCKED as well: name each unmet item,
-   and make no claim about where the value came from until every item holds. Don't ask for a reset
-   for that alone; ask for what the unmet item needs, such as a clean tree or a
-   `<db_access command>` that reaches the app's database.
-
-   **Proven fresh seed.** This run judges a non-`NULL` value itself only when, in this run, it
-   did all of the following and lists each item in the report. Never print a password or a full
-   connection string for them.
-   - It started the build under test itself in Testing Target (`k3d-deploy.sh`, or `dev-up.sh` on
-     local) from a clean tree: `/actuator/info` `git.commit.id` equals `git rev-parse --short
-     HEAD` and `build.version` doesn't end in `-dirty`.
-   - The log of that start, saved in Testing Target before any W13 restart, has DataInitializer's
-     `Seeded DEMO logins` line. DataInitializer writes it only after seeding a database with no
-     `account_holder` rows, and the schema allows no account or program without a holder, so the
-     line shows the database was empty when that start ran, whoever emptied it.
-   - It noted which database the running app uses, as host, port and database name, from the
-     `SPRING_DATASOURCE_URL` the app actually runs with, which overrides any default. That URL
-     can carry credentials, so read it only through the command below, which pipes it straight
-     into a parser in the same command. The parser accepts only the simple form
-     `jdbc:postgresql://<host>:<port>/<database>`: a plain hostname or IPv4 address, a port from
-     1 to 65535 and a plain identifier as the database, and nothing else. For that form it prints
-     `host <h>, port <p>, database <d>`. Anything else prints only `unconfirmed datasource`: for
-     example no URL, or a URL with any `?` (query properties such as `PGHOST` override the host,
-     port and database), `#`, `@`, `%`, `,` or brackets. The command runs in a subshell that turns
-     shell tracing off (`set +x`) before the URL is read, so a traced shell can't print it.
-     Never print the URL, the whole environment or `SPRING_DATASOURCE_PASSWORD`. On k3d the
-     command reads the app container (`k8s/local/kustomization.yaml` sets the URL to the
-     namespace's `postgres` Service). On local, run it in the environment this run starts
-     `dev-up.sh` with, replacing the two `kubectl` lines with
-     `printf '%s\n' "${SPRING_DATASOURCE_URL-jdbc:postgresql://localhost:5432/mydatabase}" |`
-     (the app's default when that environment sets no URL). A local app this run didn't start
-     has no confirmed database, and neither does `unconfirmed datasource`: this item isn't met
-     and the steps stay BLOCKED. It also checked that `<db_access command>` reaches that
-     database.
-
-     ```sh
-     ( set +x
-       kubectl --context k3d-dev-k8s -n mockingbird-bank-dev exec deployment/mockingbird-app \
-         -c app -- printenv SPRING_DATASOURCE_URL 2>/dev/null |
-       awk 'NR == 1 { u = $0 }
-       END {
-         lb = "[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?"; p = "^jdbc:postgresql://" lb "([.]" lb ")*"
-         ok = NR == 1 && u ~ (p ":[1-9][0-9]*/[A-Za-z_][A-Za-z0-9_]*$")
-         if (ok) { sub(/^jdbc:postgresql:\/\//, "", u); split(u, s, "/"); split(s[1], a, ":") }
-         if (ok && length(a[2]) <= 5 && a[2] + 0 <= 65535) {
-           print "host " a[1] ", port " a[2] ", database " s[2]
-         } else print "unconfirmed datasource"
-       }' )
-     ```
-
-   - It recorded the W15 value in Testing Target right after that start, before any flow, W13
-     restart or rollout, and wrote no QA data (no W11 seed, no W15 step 3, no other data-writing
-     SQL) before that record.
-
-   Then the build under test wrote the value. Judge steps 1 and 2 as written: Vacation Savings
-   listed under Regular, or a program on its account page, is a FAIL. Report steps 3 and 4
-   BLOCKED, since both start from the seed's unlinked Vacation Savings, and run steps 5 and 6 as
-   usual. For steps 3 and 4, say under Action Required how to make them runnable: fix the bug
-   behind the step 1 or 2 FAIL (listed there too), then reset the database as the reset rule
-   below allows and rerun /qa.
-
-   Don't suggest clearing the link by hand: that doesn't reseed, so a later PASS wouldn't show
-   that the code under test leaves Vacation Savings unlinked. When steps 1 to 4 are BLOCKED,
-   still sign in as holder and note Jordan's account links from the dashboard, then run steps 5
-   and 6 as usual. On `ci` the database is new every run, so judge the steps as written there:
-   Vacation Savings listed under Regular is then a FAIL.
-
-   **Reset rule.** This applies to every database reset or purge this skill suggests. Suggest one
-   only when this run identified the database the running app uses, as in the datasource item
-   above, and the command for the target this run tested clears exactly that database: on k3d,
-   `k3d-deploy.sh down --purge-db` when the app uses the namespace's own `postgres` Service; on
-   local, stopping whatever serves :8080 and then `docker compose down -v` when the app uses the
-   compose Postgres. Never suggest the k3d command on a local run, or the compose command on a k3d
-   run, because the symptom matches. Ask the user under Action Required, and never reset or purge
-   a database without the user asking for it. If the database couldn't be confirmed, or the
-   command doesn't clear it, suggest no reset: keep the affected steps BLOCKED, say why (name at
-   most the database's host, port and database name), and ask the user to reset that database
-   themselves.
+   recorded before W15 step 1 can be that leftover link or one the code under test wrote, and
+   the run cannot tell which. Report W15 steps 1 to 4 BLOCKED with the recorded value as the
+   reason rather than FAIL, and say that the `ci` run, which starts from a new database, judges
+   them. Don't suggest a database reset or purge for it, and don't suggest clearing the link by
+   hand: that doesn't reseed, so a later PASS wouldn't show that the code under test leaves
+   Vacation Savings unlinked. Still sign in as holder and note Jordan's account links from the
+   dashboard, then run steps 5 and 6 as usual. On `ci` the database is new every run, so judge
+   the steps as written there: Vacation Savings listed under Regular is then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
@@ -514,5 +416,5 @@ local step 3), that value is the recorded value: don't record it again.
 11. **Seed from an older build.** DataInitializer never reseeds a database that already has
     holders. A k3d or local database first seeded before programs existed has no `riley.chen`
     login, no programs and no dates of birth. Report the affected W15 steps BLOCKED with that
-    reason rather than FAIL. Suggest a database reset only as the reset rule in Known Failure
-    Mode 5 allows.
+    reason rather than FAIL, and suggest no database reset or purge for it (the `ci` run judges
+    them on a new database).
