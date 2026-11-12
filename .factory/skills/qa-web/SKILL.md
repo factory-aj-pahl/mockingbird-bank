@@ -340,6 +340,9 @@ Failure Mode 11 first. Then, before step 1, record Vacation Savings' program lin
 `SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
 '2000000000092';`
 The seed prints `NULL`; for any other value, see Known Failure Mode 5 before judging step 1.
+After an in-run reset or creation of an empty database on k3d or local, run this SELECT right
+after the app starts, before any flow that writes data (W11, W15 step 3), so Known Failure
+Mode 5 can use the value.
 
 1. Sign in as holder. PASS: a "Your programs" section sits below "Your accounts" with one card
    (`.program-card[data-program="REGULAR"]`) named "Regular", status "Requirements met", and
@@ -396,20 +399,53 @@ The seed prints `NULL`; for any other value, see Known Failure Mode 5 before jud
    idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
    leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
    recorded value, later runs keep that link. On k3d or local, a value other than `NULL`
-   recorded before W15 step 1 can be that leftover link or one the code under test wrote, and
-   the run cannot tell which. Report W15 steps 1 to 4 BLOCKED with the recorded value as the
-   reason rather than FAIL, also after a purge in this run. Under Action Required, ask the user to
-   purge the database (`k3d-deploy.sh down --purge-db`; for local, stop whatever serves :8080,
-   including a `dev-up.sh` left by an earlier /qa run, and run `docker compose down -v`) and rerun
-   /qa, which then starts the app and seeds the database again. Never purge without the user
-   asking for it. If the value was recorded after a purge the user agreed to in this run, say
-   instead that the link came back after the purge. A link that comes back after a purge points
-   at the code under test; the `ci` run, which starts from a new database, judges it. Don't
-   suggest clearing the link by hand: that doesn't reseed, so a later PASS wouldn't show that the
-   code under test leaves Vacation Savings unlinked. Still sign in as holder and note Jordan's
-   account links from the dashboard, then run steps 5 and 6 as usual. On `ci` the database is
-   new every run, so judge the steps as written there: Vacation Savings listed under Regular is
-   then a FAIL.
+   recorded before W15 step 1 can be that leftover link or one the code under test wrote. Unless
+   this run proved a fresh seed (below), it cannot tell which: report W15 steps 1 to 4 BLOCKED
+   with the recorded value as the reason rather than FAIL. That includes a database reset or
+   reseeded outside this run, reused storage (PVC or compose volume) without a reset this run
+   verified as empty, and an app this run didn't start. Under Action Required, ask the user to
+   reset the database, for example with `k3d-deploy.sh down --purge-db` (for local, stop whatever
+   serves :8080, including a `dev-up.sh` left by an earlier /qa run, and run `docker compose down
+   -v`), and rerun /qa, which then starts the app and seeds the database again. Never reset or
+   purge a database without the user asking for it. If the value was recorded after a reset the
+   user agreed to in this run but the fresh seed wasn't proved, say instead that the link came
+   back after the reset: it points at the code under test, and the `ci` run, which starts from a
+   new database, judges it.
+
+   **Proven fresh seed.** This run judges a non-`NULL` value itself only when, in this run, it
+   did all of the following and lists each item in the report. Never print a password or a full
+   connection string for them.
+   - It got an empty target database: a reset the user agreed to in this run (for example
+     `k3d-deploy.sh down --purge-db`, `docker compose down -v`, or dropping and recreating the
+     database or schema), or a new, empty database created only for this run. Before the app
+     started, it verified with read-only checks that the target was empty: no `account_holder`
+     table, or no rows in it. After `k3d-deploy.sh down --purge-db`, a namespace that no longer
+     exists counts, since the next deploy creates a new PVC.
+   - It noted which database the app uses, as host, port and database name (k3d: the
+     `SPRING_DATASOURCE_URL` in `k8s/local/kustomization.yaml`, the namespace's `postgres`
+     Service; local: `localhost:5432`, database `mydatabase`, unless `SPRING_DATASOURCE_*` is set
+     for `dev-up.sh`), and that the empty check and `<db_access command>` reach that database.
+     When the storage was recreated, a PVC `creationTimestamp` or compose volume `CreatedAt`
+     (`docker volume inspect`) later than the reset can back this up, but isn't required.
+   - It started the build under test on that database itself (`k3d-deploy.sh`, or `dev-up.sh` on
+     local) from a clean tree: `/actuator/info` `git.commit.id` equals `git rev-parse --short
+     HEAD` and `build.version` doesn't end in `-dirty`. The log of that start has
+     DataInitializer's `Seeded DEMO logins` line, which it writes only when it seeds an empty
+     database.
+   - It recorded the W15 value right after that start. Between the reset or creation and that
+     record it wrote no QA data (no W11 seed, no W15 step 3, no other data-writing SQL); the
+     reset's own commands and the app's Flyway migration and seed are expected writes.
+
+   Then the build under test wrote the value. Judge steps 1 and 2 as written: Vacation Savings
+   listed under Regular, or a program on its account page, is a FAIL. Report steps 3 and 4
+   BLOCKED, since both start from the seed's unlinked Vacation Savings, and run steps 5 and 6 as
+   usual.
+
+   Don't suggest clearing the link by hand: that doesn't reseed, so a later PASS wouldn't show
+   that the code under test leaves Vacation Savings unlinked. When steps 1 to 4 are BLOCKED,
+   still sign in as holder and note Jordan's account links from the dashboard, then run steps 5
+   and 6 as usual. On `ci` the database is new every run, so judge the steps as written there:
+   Vacation Savings listed under Regular is then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
