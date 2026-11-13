@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-04T21:44:43Z",
-  "commitHash": "f97b7a41fdab93c4912abaee9d72fa45a5fc673d",
+  "generatedAt": "2026-11-13T13:42:32.000Z",
+  "commitHash": "78a2f0309fc335a254194972036dc03ab3491eae",
   "branch": "master",
-  "pageCount": 48,
+  "pageCount": 49,
   "topLevelSections": [
     "overview",
     "by-the-numbers",
@@ -30,6 +30,7 @@
     "how-to-contribute/index.md",
     "how-to-contribute/development-workflow.md",
     "how-to-contribute/testing.md",
+    "how-to-contribute/functional-qa.md",
     "how-to-contribute/debugging.md",
     "how-to-contribute/patterns-and-conventions.md",
     "how-to-contribute/tooling.md",
@@ -71,13 +72,21 @@
   ],
   "videoOverview": {
     "status": "ready",
-    "sizeBytes": 14430475,
+    "sizeBytes": 9746356,
     "contentType": "video/mp4",
-    "generatedAt": "2026-11-04T18:32:21.442Z",
-    "durationSeconds": 406.708333,
-    "copyFromWikiRunId": "51c16ebb-324e-44f6-b018-e84f891eba18",
+    "generatedAt": "2026-11-13T13:42:02.701Z",
+    "durationSeconds": 378.334,
+    "captionTracks": [
+      {
+        "language": "en",
+        "label": "English",
+        "sizeBytes": 11801,
+        "contentType": "text/vtt"
+      }
+    ],
     "warnings": [
-      "Video diff classification: minor, changes are below regeneration thresholds (4 commits, 2 files, 138 lines outside the generated droid-wiki/ pages); reused video from wiki run 51c16ebb-324e-44f6-b018-e84f891eba18"
+      "Video diff classification: major, 79 files changed since the prior video (1 commit, 2651 insertions, 395 deletions; PR #17 SED-847 account programs); regenerated instead of reusing the video from wiki run 23927c1f-4d47-4fbf-ba80-be15078037e6",
+      "hyperframes lint warning (non-blocking): timeline_track_too_dense, track 1 has 14 scene clips in one index.html"
     ]
   }
 }

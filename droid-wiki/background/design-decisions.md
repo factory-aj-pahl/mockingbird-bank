@@ -6,7 +6,7 @@ The choices below shape most of the codebase. Each section gives the context, wh
 
 **Context.** The app is a read-only dashboard for one signed-in holder. It needs a login page, a dashboard and an account detail page.
 
-**Decision.** Every view is a Java Vaadin Flow class under `src/main/java/com/mockingbirdbank/ui/`. Views receive `AccountService` and `TransactionService` by constructor injection and call them in-process. There is no JSON API for the frontend; the only HTTP endpoints besides Vaadin's own are Actuator's.
+**Decision.** Every view is a Java Vaadin Flow class under `src/main/java/com/mockingbirdbank/ui/`. Views receive `AccountService`, `TransactionService` and `ProgramService` by constructor injection and call them in-process. There is no JSON API for the frontend; the only HTTP endpoints besides Vaadin's own are Actuator's.
 
 **Consequences.**
 - No DTOs, controllers or client-side state management to maintain. Access control is expressed with `@PermitAll` / `@AnonymousAllowed` on route classes.

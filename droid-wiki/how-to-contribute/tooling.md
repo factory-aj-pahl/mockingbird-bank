@@ -17,7 +17,7 @@ Nearly all quality tooling is Gradle-driven and runs inside `./gradlew build`, s
 | `org.gradle.test-retry` | 1.6.2 | Up to 2 retries per failed test |
 | `com.autonomousapps.dependency-analysis` | 3.19.2 | `buildHealth`: unused or misdeclared dependencies fail the build |
 
-The Java toolchain is pinned to 21. `gradle.properties` sets `org.gradle.jvmargs=-Xmx1g` and `baseVersion=0.1.0`.
+The Java toolchain is pinned to 21. `gradle.properties` sets `org.gradle.jvmargs=-Xmx1g` and `baseVersion=0.3.0` (bumped from 0.1.0 to 0.2.0 in `3e172bf`, PR #16, and to 0.3.0 in `78a2f03`, PR #17).
 
 ## What `check` runs
 
@@ -104,16 +104,24 @@ The two summary files are computed by regex over each tool's XML report rather t
 | `.devcontainer/Dockerfile` | `mcr.microsoft.com/devcontainers/java:1-21-bookworm`, with the broken Yarn apt source removed |
 | `.devcontainer/docker-compose.yml` | The `app` service: mounts the repo at `/workspace`, publishes 8080, waits for a healthy `postgres`, points the datasource at `postgres:5432`, and sets `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` so Testcontainers can reach sibling containers |
 
-### Agent skill
+### Agent skills
 
-`.factory/skills/run-mockingbird-bank-locally/SKILL.md` is a Factory Droid skill that walks an agent through starting Postgres (compose or dev container), `build` and `bootRun`, signing in as `jordan.ellis`, running the interactive QA script and the individual lint tasks. It describes the QA run as login, dashboard, detail, sign-out and wrong password; the spec also covers the reveal toggles and the version label.
+Three Factory Droid skills live under `.factory/skills/`:
+
+| Skill | What it does |
+| --- | --- |
+| `.factory/skills/run-mockingbird-bank-locally/SKILL.md` | Walks an agent through starting Postgres (compose or dev container), `build` and `bootRun`, signing in as `jordan.ellis` or `riley.chen` (the program sections need `MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_PROGRAMS=true`), running the interactive QA script and the individual lint tasks. It describes the QA run as login, dashboard, detail, sign-out and wrong password; the spec also covers the reveal toggles and the version label |
+| `.factory/skills/qa/SKILL.md` | The `/qa` orchestrator: diff-driven functional QA against k3d, a local server or the CI runner, configured by `.factory/skills/qa/config.yaml` |
+| `.factory/skills/qa-web/SKILL.md` | The web app's flow menu (W1 to W15), path-to-flow map, seed data for both seeded holders and known failure modes, plus SQL to seed and remove a second holder |
+
+`.factory/settings.json` enables the `droid-control@factory-plugins` plugin for the project, which the QA skills use to drive the browser. See [Functional QA](functional-qa.md).
 
 ## GitHub workflows
 
 | Workflow | Triggers | Purpose |
 | --- | --- | --- |
-| `.github/workflows/ci.yml` | Push and PR to `master` | `fast-checks` (lint, `buildHealth`, `validateAgentsMd`, Javadoc) and `test` (full build minus those) in parallel; Slack alert on `master` failure |
-| `.github/workflows/codeql.yml` | Push and PR to `master`, Mondays 03:17 UTC | CodeQL `java-kotlin` with autobuild |
+| `.github/workflows/ci.yml` | Push and PR to `master` | `fast-checks` (lint, `buildHealth`, `validateAgentsMd`, Javadoc) and `test` (full build minus those) in parallel, both required checks; Slack alert on `master` failure |
+| `.github/workflows/codeql.yml` | Push and PR to `master`, Mondays 03:17 UTC | CodeQL `java-kotlin` with autobuild; required check `Analyze (java-kotlin)` |
 | `.github/workflows/secret-scan.yml` | Push and PR to `master` | gitleaks over full history; fails the check on a hit |
 | `.github/workflows/dast.yml` | Push to `master`, Mondays 04:23 UTC, manual | Production jar against `postgres:17`, OWASP ZAP baseline on `/login`, report artifact kept 30 days, never fails |
 | `.github/workflows/publish-image.yml` | Push to `master` | Push image to GHCR as `latest` and `sha-<sha>`, record a GitHub Deployment, boot-and-health smoke test, Slack alert on failure |
@@ -121,13 +129,14 @@ The two summary files are computed by regex over each tool's XML report rather t
 | `.github/workflows/release.yml` | Tag `v*.*.*` | Publish the draft release, push image tagged with the version (no `v`) and `latest` |
 | `.github/workflows/labeler.yml` | `pull_request_target` opened, synchronize, reopened | Sync `area: *` labels from `.github/labeler.yml` |
 | `.github/workflows/stale.yml` | Daily 06:00 UTC, manual | Mark issues and PRs stale after 60 days, close 14 days later; drafts and `priority: high`, `pinned`, `security` exempt |
-| `.github/workflows/droid-review.yml` | PR opened, ready for review, reopened | Factory Droid automatic code and security review on non-draft PRs |
+| `.github/workflows/droid-review.yml` | PR opened, synchronize, ready for review, reopened; a newer run cancels an older one for the same PR | Factory Droid automatic code and security review on non-draft PRs; required check `droid-review`, so every new PR head needs its own review |
 | `.github/workflows/droid.yml` | Comments, reviews, issues and PRs mentioning `@droid` | Ad hoc Droid run |
-| `.github/workflows/droid-wiki-refresh.yml` | Push to `master` that changes something outside `droid-wiki/`, one run at a time | Regenerate this wiki with `droid exec "/wiki"`, push the pages to the `factory/droid-wiki` branch and open or update one "docs: refresh wiki" PR. See [Wiki refresh](#wiki-refresh) |
+| `.github/workflows/qa.yml` | PR to `master` (opened, synchronize, reopened, ready for review), manual smoke run | Build the branch as a production jar, boot it against a Postgres service, run the Droid `qa` skill and keep one sticky "QA Report" comment on the PR. Required check `Functional QA (Droid)`, but the job passes whatever QA finds; skipped (which counts as passing) for drafts, forks and Dependabot. See [Functional QA](functional-qa.md#the-qa-workflow) |
+| `.github/workflows/droid-wiki-refresh.yml` | Push to `master` that changes something outside `droid-wiki/`, one run at a time | Regenerate this wiki with `droid exec "/wiki"`, push the pages to the `factory/droid-wiki` branch and open or update one rolling "docs: refresh wiki" PR that stays open. See [Wiki refresh](#wiki-refresh) |
 
 ### Wiki refresh
 
-`.github/workflows/droid-wiki-refresh.yml` (added in `3b03ecd`, PR #4, changed in `2b3e914`, PR #5, and limited to non-wiki pushes in `f97b7a4`, PR #8) keeps the Factory Wiki in step with `master`. It splits the work into a read-only job that runs the agent and a write job that publishes the result, so the agent never holds push or PR permissions.
+`.github/workflows/droid-wiki-refresh.yml` (added in `3b03ecd`, PR #4, changed in `2b3e914`, PR #5, limited to non-wiki pushes in `f97b7a4`, PR #8, and given a rolling, never-merged PR in `e3e97cb`, PR #14) keeps the Factory Wiki in step with `master`. It splits the work into a read-only job that runs the agent and a write job that publishes the result, so the agent never holds push or PR permissions.
 
 ```mermaid
 graph LR
@@ -142,15 +151,23 @@ graph LR
 | Piece | Detail |
 | --- | --- |
 | Concurrency | Group `droid-wiki-refresh` with `cancel-in-progress: false`, fixed for the whole repository, so pushes during a run queue instead of starting parallel generations |
-| Trigger | `push` to `master`, with `paths-ignore: droid-wiki/**`, so merging the wiki PR does not start another run |
+| Trigger | `push` to `master`, with `paths-ignore: droid-wiki/**`, so a push that only changes the wiki (such as merging a wiki PR) does not start another run |
 | Checkout | `actions/checkout@v6` in both jobs, the only workflow on v6. The `wiki-refresh` job sets `fetch-depth: 0`, because `/wiki` diffs against the commit the previous wiki was generated from to rewrite only the affected pages |
 | Restore | `git fetch origin factory/droid-wiki` then `git checkout FETCH_HEAD -- droid-wiki`, which copies the previous pages into the working tree without switching branches. If the branch does not exist yet, the run generates the whole wiki |
 | Generate | Installs Droid with `curl -fsSL https://app.factory.ai/cli \| sh` and runs `droid exec --auto high "/wiki"` with `FACTORY_API_KEY` |
 | Hand-off | Uploads `droid-wiki/` as the `droid-wiki` artifact, including the hidden `.wiki-meta.json` (which makes the next run incremental) and excluding `droid-wiki/video/**` and `droid-wiki/images/**` |
-| Publish | `peter-evans/create-pull-request`, pinned by SHA (v8.1.1), commits to branch `factory/droid-wiki` against the default branch with label `droid-wiki`. Uses `FACTORY_WIKI_PR_TOKEN` when set, otherwise `github.token` |
+| Publish | `peter-evans/create-pull-request`, pinned by SHA (v8.1.1), commits to branch `factory/droid-wiki` against the default branch with title and commit message `docs: refresh wiki` and label `droid-wiki`. The PR body is "Generated by Droid Wiki Refresh. Keep this rolling pull request open; the next refresh updates it in place. Do not merge it." Uses `FACTORY_WIKI_PR_TOKEN` when set, otherwise `github.token` |
 | Failure handling | The publish step has `continue-on-error: true`; a later step turns a rejected push or PR into a `::warning::` annotation instead of failing the run |
 
-Two consequences are easy to miss. A PR opened with the `GITHUB_TOKEN` fallback does not trigger other workflows, so required checks never run on it; that is why the workflow asks for a fine-grained `FACTORY_WIKI_PR_TOKEN` (contents and pull-requests write on this repository only). Merging the wiki PR is itself a push to `master`; the `paths-ignore` filter keeps it from starting another refresh run that would only recount the merged pages and open a new PR. The `pull_request` guards on the hand-off and publish steps are defensive: the workflow currently triggers only on `push`.
+One consequence is easy to miss: a PR opened with the `GITHUB_TOKEN` fallback does not trigger other workflows, so required checks never run on it; that is why the workflow asks for a fine-grained `FACTORY_WIKI_PR_TOKEN` (contents and pull-requests write on this repository only). The `pull_request` guards on the hand-off and publish steps are defensive: the workflow currently triggers only on `push`.
+
+### The rolling wiki PR
+
+Since `e3e97cb` (PR #14, 2026-11-07) the wiki PR is not meant to be merged. The PR body says so, and the "Pull requests" section of `AGENTS.md` excludes it from auto-merge and asks to keep it open, because the next refresh updates it in place (see [Auto-merge](index.md#auto-merge)). Before that, the PR body asked reviewers to merge it, and two wiki PRs did land on `master`: #6 (`33ecb9c`) and #7 (`7474d45`, 2026-11-04).
+
+The up-to-date wiki therefore lives on the `factory/droid-wiki` branch and in the Factory app. The `droid-wiki/` directory on `master` started from the copy merged in #7. Feature PRs #16 (`3e172bf`) and #17 (`78a2f03`) also edited pages there directly, but `droid-wiki/.wiki-meta.json` on `master` still points at `f97b7a4`. That is harmless, because every refresh restores the pages from `factory/droid-wiki` before it starts. The `paths-ignore` filter and its comment in the workflow still describe merging the wiki PR. Merging it would be a push that only changes `droid-wiki/`, so the filter still stops that from starting a refresh that would only recount the merged pages and open a new PR.
+
+### The publish token
 
 The token matters for the publish step. The first runs on `master` generated the wiki but could not push the rolling branch ("could not read Username for 'https://github.com'"). The cause was an invalid `FACTORY_WIKI_PR_TOKEN`, not the checkout version, although `2b3e914` (PR #5) moved both jobs to checkout v6 while chasing it. See [pitfalls](../background/pitfalls.md#a-bad-factory_wiki_pr_token-looks-like-a-missing-credential).
 
@@ -168,4 +185,4 @@ The token matters for the publish step. The first runs on `master` generated the
 
 Every update also gets the `dependencies` label. Gradle updates to JUnit, Mockito, Spotless, CPD and test-retry are grouped into one `test-and-quality-tooling` PR.
 
-Related: [Development workflow](development-workflow.md), [Patterns and conventions](patterns-and-conventions.md), [Dependencies](../reference/dependencies.md).
+Related: [Development workflow](development-workflow.md), [Functional QA](functional-qa.md), [Patterns and conventions](patterns-and-conventions.md), [Dependencies](../reference/dependencies.md).

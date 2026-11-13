@@ -102,6 +102,7 @@ Entity `ProgramParticipation` in `src/main/java/com/mockingbirdbank/model/Progra
 | `program_type` | `VARCHAR(255)` | `NOT NULL`, check `program_participation_known_type`: `REGULAR` or `YOUTH_SAVINGS` | `programType` | `ProgramType` | `@Enumerated(EnumType.STRING)` |
 | (none) | | `UNIQUE (id, holder_id)` (`program_participation_id_holder_key`) | | | Target of the composite foreign key from `account` |
 | (none) | | | `accounts` | `List<Account>` | `@OneToMany(mappedBy = "programParticipation")`, lazy, `@OrderBy("accountType ASC, id ASC")`, `@BatchSize(size = 20)` |
+
 ## transaction
 
 Entity `Transaction` in `src/main/java/com/mockingbirdbank/model/Transaction.java`.
@@ -199,6 +200,7 @@ Transactions on Riley Chen's Youth Savings account:
 | 5 | Weekly allowance | Income | 20.00 |
 | 8 | Corner Bookstore | Shopping | -12.99 |
 | 12 | Weekly allowance | Income | 20.00 |
+
 ## flyway_schema_history
 
-Flyway creates and owns a fifth table, `flyway_schema_history`, recording which migrations have run. No entity maps to it. On an empty database it gets one row each for `V1__init_schema.sql` and `V2__account_programs.sql`. On a non-empty schema without this table, `spring.flyway.baseline-on-migrate: true` writes a baseline row for version 1 instead and V1 never runs, which is how the first LAB database ended up without the app's tables (see [Pitfalls](../background/pitfalls.md)). New schema changes go in new `V3__...` files; never edit an applied migration.
+Flyway creates and owns a sixth table, `flyway_schema_history`, recording which migrations have run. No entity maps to it. On an empty database it gets one row each for `V1__init_schema.sql` and `V2__account_programs.sql`. On a non-empty schema without this table, `spring.flyway.baseline-on-migrate: true` writes a baseline row for version 1 instead and V1 never runs, which is how the first LAB database ended up without the app's tables (see [Pitfalls](../background/pitfalls.md)). New schema changes go in new `V3__...` files; never edit an applied migration.

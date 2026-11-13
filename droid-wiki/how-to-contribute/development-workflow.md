@@ -11,10 +11,10 @@ graph TD
     C --> D[git commit runs pre-commit hook]
     D --> E[Open PR against master]
     E --> F[CI fast-checks and test jobs]
-    E --> G[Labeler, Droid review, CodeQL, gitleaks]
-    F --> H[Owner review and conversations resolved]
+    E --> G[Labeler, Droid review, Droid QA, CodeQL, gitleaks]
+    F --> H[Five required checks green, branch up to date]
     G --> H
-    H --> I[Merge to master]
+    H --> I[Auto-merge squashes into master]
     I --> J[publish-image, release-drafter, DAST, CodeQL, wiki refresh]
 ```
 
@@ -32,7 +32,7 @@ Follow [Patterns and conventions](patterns-and-conventions.md). While iterating,
 ./gradlew build                                           # the full definition of done
 ```
 
-Run the app with `./scripts/dev-up.sh` to see a UI change, and `./scripts/run-interactive-qa.sh` for the browser smoke test. Details are in [Testing](testing.md).
+Run the app with `./scripts/dev-up.sh` to see a UI change, and `./scripts/run-interactive-qa.sh` for the browser smoke test. To have Droid check the change the way a user would, run `/qa`; it picks flows from your diff and tests the working tree on k3d or a local server. Details are in [Testing](testing.md) and [Functional QA](functional-qa.md).
 
 ## 3. Commit
 
@@ -64,8 +64,9 @@ Fill in `.github/pull_request_template.md`: what and why, how it was verified, a
 | --- | --- |
 | `.github/workflows/ci.yml` | Two parallel jobs, described below |
 | `.github/workflows/labeler.yml` | Adds `area: *` labels from changed paths (`sync-labels: true`, so it also removes stale ones) |
-| `.github/workflows/droid-review.yml` | Automated code review plus security review, skipped for drafts |
-| `.github/workflows/codeql.yml` | CodeQL `java-kotlin` analysis |
+| `.github/workflows/droid-review.yml` | Automated code review plus security review, skipped for drafts. Runs again on every push (`synchronize`); a newer push cancels the review still running for the old head. Required check `droid-review` |
+| `.github/workflows/qa.yml` | When app code changed: builds and boots the branch, runs Droid functional QA and posts or updates one "QA Report" comment. Required check `Functional QA (Droid)`, but the job passes whatever QA finds, so read the comment. See [Functional QA](functional-qa.md#the-qa-workflow) |
+| `.github/workflows/codeql.yml` | CodeQL `java-kotlin` analysis. Required check `Analyze (java-kotlin)` |
 | `.github/workflows/secret-scan.yml` | gitleaks over full history (`fetch-depth: 0`) |
 
 ### CI jobs
@@ -81,7 +82,15 @@ Both use Temurin JDK 21 on `ubuntu-latest`, where Docker is available for Testco
 
 ## 5. Review and merge
 
-`.github/CODEOWNERS` makes the owner a required reviewer on every path, and branch protection on `master` requires the CI check plus resolved conversations. Merged PRs appear on `master` as a single commit whose subject ends with the PR number, for example `(#3)`.
+The `Protect Master` ruleset on `master` requires a PR and five passing checks: both CI jobs (`Fast checks (lint, static analysis)` and `Build and test`), `Analyze (java-kotlin)`, `droid-review` and `Functional QA (Droid)`. The branch must also be up to date with `master`, so a PR that fell behind needs an update and a fresh round of checks. The ruleset has no bypass actors and requires neither approvals nor resolved conversations. `.github/CODEOWNERS` still requests the owner's review on every path, but that review does not gate the merge (see [review and merge gates](index.md#review-and-merge-gates)). Merged PRs appear on `master` as a single commit whose subject ends with the PR number, for example `(#3)`.
+
+Do not press merge yourself. `AGENTS.md` asks for GitHub auto-merge with squash instead, so the PR merges on its own once the gates pass:
+
+- **Non-feature PRs:** enable it as soon as the PR is open, with `gh pr merge <PR number> --auto --squash`.
+- **Linear-tracked feature PRs:** wait until a newly applied `approved` label authorizes a version-only bump, push that bump to the PR, then enable auto-merge.
+- **The rolling "docs: refresh wiki" PR:** leave it open and never enable auto-merge on it. Each wiki refresh updates it in place.
+
+Never merge directly or bypass required checks. Details and open questions about the `approved` label are in [How to contribute](index.md#auto-merge).
 
 ## 6. After merge
 
@@ -94,7 +103,7 @@ A push to `master` starts:
 | `.github/workflows/release-drafter.yml` | Updates the draft GitHub Release |
 | `.github/workflows/dast.yml` | OWASP ZAP baseline scan of a production jar; report uploaded as an artifact, never fails the build |
 | `.github/workflows/codeql.yml`, `.github/workflows/secret-scan.yml` | Same scans as on the PR |
-| `.github/workflows/droid-wiki-refresh.yml` | Regenerates the changed pages of this wiki and opens or updates one "docs: refresh wiki" PR from the `factory/droid-wiki` branch. Review and merge it like any other PR. Pushes that only change `droid-wiki/`, such as that merge, do not start another run. See [Tooling](tooling.md#wiki-refresh) |
+| `.github/workflows/droid-wiki-refresh.yml` | Regenerates the changed pages of this wiki and opens or updates one "docs: refresh wiki" PR from the `factory/droid-wiki` branch. That PR is a rolling one: keep it open, do not merge it or enable auto-merge, and the next refresh updates it in place. Pushes that only change `droid-wiki/` do not start another run. See [Tooling](tooling.md#wiki-refresh) |
 
 The image build passes the output of `scripts/build-metadata.sh` as build args, so the image reports its real version and commit. See [Build version](../features/build-version.md) and [Docker image](../deployment/docker-image.md).
 

@@ -123,7 +123,7 @@ In the console log the ID sits inside the `[...]` bracket, not as `correlationId
 `src/main/java/com/mockingbirdbank/observability/BuildVersion.java` logs one line on `ApplicationReadyEvent`:
 
 ```
-Mockingbird Bank 0.1.0-09f771a started (commit 09f771a, branch master, built 2026-11-03T13:36:11Z)
+Mockingbird Bank 0.3.0-78a2f03 started (commit 78a2f03, branch master, built 2026-11-13T13:20:04Z)
 ```
 
 The `built ...` part appears only for image builds, which pass `-PbuildTime`. An image built without the metadata build args reports `unknown` for commit and branch. Find it with:

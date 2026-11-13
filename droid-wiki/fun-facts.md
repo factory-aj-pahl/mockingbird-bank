@@ -12,7 +12,7 @@ There is no image file for the bird in the top bar. `src/main/java/com/mockingbi
 
 ## The build script is the biggest file in the repo
 
-`build.gradle` is 692 lines, longer than `AGENTS.md` (573) and almost three times the largest Java class, `DashboardView.java` (239). It started at 53 lines in the scaffold and was changed in 14 of the 39 commits, tied with `AGENTS.md`. More than any other file, it holds the quality gates, test reporting, git metadata and build summaries. Details are in [tooling](how-to-contribute/tooling.md) and [by the numbers](by-the-numbers.md).
+`build.gradle` is 695 lines, longer than `AGENTS.md` (650) and more than twice the largest Java class, `DashboardView.java` (317). It started at 53 lines in the scaffold and was changed in 15 of the 52 commits, second only to `AGENTS.md` (21). More than any other file, it holds the quality gates, test reporting, git metadata and build summaries. Details are in [tooling](how-to-contribute/tooling.md) and [by the numbers](by-the-numbers.md).
 
 ## The secret scanner caught a test, twice
 
