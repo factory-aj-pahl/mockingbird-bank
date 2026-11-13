@@ -8,12 +8,12 @@ Every build of Mockingbird Bank records its version, commit and branch, and the 
 
 | Build | Version | Example |
 | --- | --- | --- |
-| Any non-release build | `<baseVersion>-<short sha>` | `0.1.0-09f771a` |
-| Same, with uncommitted changes | `<baseVersion>-<short sha>-dirty` | `0.1.0-09f771a-dirty` |
-| Tagged release `vX.Y.Z` | `X.Y.Z` | `0.2.0` |
-| No git info and no build args | `<baseVersion>-unknown` | `0.1.0-unknown` |
+| Any non-release build | `<baseVersion>-<short sha>` | `0.3.0-78a2f03` |
+| Same, with uncommitted changes | `<baseVersion>-<short sha>-dirty` | `0.3.0-78a2f03-dirty` |
+| Tagged release `vX.Y.Z` | `X.Y.Z` | `0.3.0` |
+| No git info and no build args | `<baseVersion>-unknown` | `0.3.0-unknown` |
 
-`baseVersion=0.1.0` lives in `gradle.properties`. The short sha is the first seven characters of the full commit hash.
+`baseVersion=0.3.0` lives in `gradle.properties`. Each feature PR bumps it as the version-only bump that the feature PR rule in `AGENTS.md` asks for (see [auto-merge](../how-to-contribute/index.md#auto-merge)): `0.1.0` became `0.2.0` in PR #16 (`3e172bf`, SED-791), and `0.3.0` in PR #17 (`78a2f03`, SED-847). The short sha is the first seven characters of the full commit hash.
 
 ## How it works
 
@@ -49,8 +49,8 @@ The `gitOutput` helper returns `null` if there is no `.git` directory, if `git` 
 
 ### Generated files
 
-- **`META-INF/build-info.properties`**: written by Spring Boot's `springBoot { buildInfo { ... } }` block (lines 153-164). Spring Boot exposes it as a `BuildProperties` bean. The build time is included only when `-PbuildTime` is passed. Otherwise `excludes = ['time']` drops it, because an always-changing timestamp would make `processResources`, and with it every test task, out of date on each run.
-- **`git.properties`**: written by the custom `generateGitProperties` task (`WriteProperties`, lines 170-184) to `build/generated/git/git.properties`, then added to `processResources`. It sets `git.commit.id`, `git.commit.id.abbrev`, `git.branch`, `git.dirty` and, when known, `git.commit.time`. Spring Boot exposes it as a `GitProperties` bean. The repo writes this by hand instead of using a git-properties plugin because those plugins need a `.git` directory and the Docker build does not have one.
+- **`META-INF/build-info.properties`**: written by Spring Boot's `springBoot { buildInfo { ... } }` block (lines 156-167). Spring Boot exposes it as a `BuildProperties` bean. The build time is included only when `-PbuildTime` is passed. Otherwise `excludes = ['time']` drops it, because an always-changing timestamp would make `processResources`, and with it every test task, out of date on each run.
+- **`git.properties`**: written by the custom `generateGitProperties` task (`WriteProperties`, lines 173-184) to `build/generated/git/git.properties`, then added to `processResources`. It sets `git.commit.id`, `git.commit.id.abbrev`, `git.branch`, `git.dirty` and, when known, `git.commit.time`. Spring Boot exposes it as a `GitProperties` bean. The repo writes this by hand instead of using a git-properties plugin because those plugins need a `.git` directory and the Docker build does not have one.
 
 ### Docker builds
 
@@ -60,9 +60,9 @@ The `gitOutput` helper returns `null` if there is no `.git` directory, if `git` 
 2. The `Dockerfile` build stage declares those five `ARG`s and forwards them to Gradle as `-PappVersion`, `-PgitCommit`, `-PgitBranch`, `-PgitDirty` and `-PgitCommitTime`. It also passes `-PbuildTime="$(date -u +%Y-%m-%dT%H:%M:%SZ)"`, so image builds are the only builds with a build time.
 3. The run stage re-declares `APP_VERSION` and `GIT_COMMIT` and sets the OCI labels `org.opencontainers.image.version` and `org.opencontainers.image.revision`, readable with `docker inspect`.
 
-Every image build path calls the script: `createLocalDockerImage.zsh`, `createDockerHubImage.zsh`, `scripts/k3d-deploy.sh`, `.github/workflows/publish-image.yml` and `.github/workflows/release.yml`. For releases, `release.yml` strips the `v` from the tag and sets the result as `APP_VERSION` for the script. The Dockerfile then passes it on as `-PappVersion`, so tag `v0.2.0` builds as `0.2.0`. See [Docker image](../deployment/docker-image.md) and [Releases](../deployment/releases.md).
+Every image build path calls the script: `createLocalDockerImage.zsh`, `createDockerHubImage.zsh`, `scripts/k3d-deploy.sh`, `.github/workflows/publish-image.yml` and `.github/workflows/release.yml`. For releases, `release.yml` strips the `v` from the tag and sets the result as `APP_VERSION` for the script. The Dockerfile then passes it on as `-PappVersion`, so tag `v0.3.0` builds as `0.3.0`. See [Docker image](../deployment/docker-image.md) and [Releases](../deployment/releases.md).
 
-A plain `docker build .` without the build args still succeeds. Commit and branch then read `unknown`, and the version becomes `0.1.0-unknown`, because the version falls back to `baseVersion` plus the unknown short sha.
+A plain `docker build .` without the build args still succeeds. Commit and branch then read `unknown`, and the version becomes `0.3.0-unknown`, because the version falls back to `baseVersion` plus the unknown short sha.
 
 ## Runtime: the BuildVersion component
 
@@ -74,7 +74,7 @@ A plain `docker build .` without the build args still succeeds. Commit and branc
 | `commit()` | `GitProperties.getShortCommitId()` or `unknown` |
 | `branch()` | `GitProperties.getBranch()` or `unknown` |
 | `buildTime()` | `Optional<Instant>`, present only for image builds |
-| `displayVersion()` | The version alone if it already contains the commit (every non-release build) or the commit is unknown. Otherwise `version (commit)`, for example `0.2.0 (09f771a)` for a release. |
+| `displayVersion()` | The version alone if it already contains the commit (every non-release build) or the commit is unknown. Otherwise `version (commit)`, for example `0.3.0 (78a2f03)` for a release. |
 | `details()` | `commit 09f771a, branch master`, plus `, built <time>` when known |
 | `logRunningVersion()` | `@EventListener(ApplicationReadyEvent.class)`: logs `Mockingbird Bank <version> started (<details>)` at INFO |
 
@@ -104,7 +104,7 @@ Example:
 
 ```
 curl localhost:8080/actuator/info
-# {"build":{"version":"0.1.0-09f771a",...},"git":{"branch":"master","commit":{"id":"09f771a",...}}}
+# {"build":{"version":"0.3.0-78a2f03",...},"git":{"branch":"master","commit":{"id":"78a2f03",...}}}
 ```
 
 The DAST workflow's ZAP baseline scan flags this endpoint as information disclosure. That finding is expected; see [Security](../security.md).

@@ -50,7 +50,7 @@ Standard Actuator health, including the database check. It is public because pro
 | LAB readiness probe, `k8s/03-app.yaml` | `/actuator/health` |
 | k3d startup and liveness probes, `k8s/local/app.yaml` | `/actuator/health/liveness` |
 | k3d readiness probe, `k8s/local/app.yaml` | `/actuator/health` (includes the DB, so traffic stops when Postgres goes away) |
-| `.github/workflows/dast.yml`, `.github/workflows/publish-image.yml`, `scripts/run-interactive-qa.sh` | `/actuator/health`, waiting for `"status":"UP"` |
+| `.github/workflows/dast.yml`, `.github/workflows/publish-image.yml`, `.github/workflows/qa.yml`, `scripts/run-interactive-qa.sh` | `/actuator/health`, waiting for `"status":"UP"` |
 
 The `liveness` and `readiness` groups exist in the k3d deploy because `k8s/local/kustomization.yaml` sets `MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED=true`. `application.yml` does not set it.
 
@@ -63,11 +63,11 @@ curl -s localhost:8080/actuator/health
 
 Public, so "which build is deployed" needs no login. `application.yml` turns off every info contributor (`management.info.defaults.enabled: false`) and turns back on only `build` and `git` in `simple` mode. `ApplicationSmokeTest.infoEndpointIsPublicAndReportsOnlyBuildAndGitBasics` asserts that `build.version`, `git.commit.id` and `git.branch` are present and that `java`, `os` and `process` are not.
 
-Example from `AGENTS.md`:
+Example for a build of commit `78a2f03` with `baseVersion=0.3.0`:
 
 ```bash
 curl localhost:8080/actuator/info
-# {"build":{"version":"0.1.0-09f771a",...},"git":{"branch":"master","commit":{"id":"09f771a",...}}}
+# {"build":{"version":"0.3.0-78a2f03",...},"git":{"branch":"master","commit":{"id":"78a2f03",...}}}
 ```
 
 See [Build version](features/build-version.md) for where these values come from.

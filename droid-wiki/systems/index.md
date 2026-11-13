@@ -20,9 +20,9 @@ The application code lives in nine packages under `src/main/java/com/mockingbird
 | `config` (incl. `config/logging/`) | 6 | 408 | 4 | 150 | Feature flags, `DataInitializer` seeding, `BusinessClockConfig`, `ScrubbingMessageConverter` | [Feature flags](../features/feature-flags.md), [Persistence](persistence.md#seeding), [Security](../security.md) |
 | **Total** | **42** | **3,005** | **24** | **2,409** | | |
 
-Counts are of the `.java` files under `src/main/java` and `src/test/java`, by package directory.
+Counts come from `git ls-files` on `src/main/java` and `src/test/java` at HEAD `78a2f03`.
 
-The test-to-code ratio is 0.80 by lines (2,409 test lines for 3,005 main lines) and 0.57 by files. That average hides a split: the `ui` package has 1,201 lines and only four unit test classes (`AccountDetailViewTest` for account page routing and the not-found path, `DashboardViewTest` for the account count line and programs section, `ProgramCardTest` for the program card, `ProgramLookupTest` for the program read fallback), while `service` has 1.6 test lines per main line. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
+The test-to-code ratio is 0.80 by lines (2,409 test lines for 3,005 main lines) and 0.57 by files. That average hides a split: the `ui` package has 1,201 lines and four unit test classes (`AccountDetailViewTest` for account page routing and the not-found path, `DashboardViewTest` for the account count line and programs section, `ProgramCardTest` for the program card, `ProgramLookupTest` for the program read fallback), while `service` has 1.6 test lines per main line. The UI is left out of the JaCoCo per-class gate on purpose; see [UI](ui.md#testing-and-coverage) and [Testing](../how-to-contribute/testing.md).
 
 ## Layering
 
@@ -42,7 +42,9 @@ graph TD
     service --> model
     repository --> model
     config --> repository
+    config --> model
     security --> repository
+    security --> model
     security -.->|LoginView only| ui
     analytics -->|MDC key| observability
 ```

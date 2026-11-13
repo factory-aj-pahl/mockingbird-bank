@@ -41,7 +41,7 @@ graph TD
 3. **Import.** `k3d image import mockingbird-bank:<tag> mockingbird-bank:dev -c dev-k8s` loads both tags into the nodes' containerd. No registry is involved.
 4. **Overlay.** Writes `build/k3d-deploy/kustomization.yaml`, which includes `../../k8s/local` and sets `images: [{name: mockingbird-bank, newTag: <tag>}]`. It lives under `build/` because kustomize refuses absolute paths to a base, and `build/` is gitignored and excluded from the Docker context.
 5. **Apply and wait.** `kubectl apply -k`, then `rollout status` for Postgres and the app. If the app rollout times out, the script prints the namespace state and a `describe pod` hint, then exits 1.
-6. **Report.** Prints the URL, a `curl` for `/actuator/health`, the version and the demo login `jordan.ellis` / `mockingbird`.
+6. **Report.** Prints the URL, a `curl` for `/actuator/health`, the version and the demo logins `jordan.ellis` or `riley.chen` / `mockingbird`.
 
 The URL comes from `docker port k3d-<cluster>-serverlb 80/tcp`. On the reference cluster that is port 81, giving `http://mockingbird.localhost:81`. If the loadbalancer maps no host port to 80, the script suggests `kubectl -n kube-system port-forward svc/traefik 8081:80` and `http://mockingbird.localhost:8081` instead. `*.localhost` resolves to 127.0.0.1, so no hosts-file entry is needed.
 

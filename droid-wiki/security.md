@@ -28,7 +28,7 @@ graph LR
 | Signed-in user to another holder's data | Account IDs in URLs and reveal calls, program links | Ownership checks on reveal and account detail; owner-only program evaluation; a composite foreign key on program links |
 | App to database | JDBC | Credentials from env vars or k8s Secrets |
 | App to logs | Log messages, analytics events | `ScrubbingMessageConverter` on every message |
-| Contributor to `master` | Pull requests | CI, CodeQL, gitleaks, CODEOWNERS, branch protection |
+| Contributor to `master` | Pull requests | `Protect Master` ruleset (PR and five checks required, no bypass), plus gitleaks and CODEOWNERS |
 
 ## Authentication
 
@@ -158,7 +158,7 @@ Limits worth knowing:
 | `k8s/01-app-db-secret.yaml` | `Secret` `mockingbird-db-credentials` | Go-templated from `k8s/values.yaml`, where `dbPassword` is `<+secrets.getValue("postgres-lab-secret")>`. Harness resolves it from its secret manager at deploy time, so the real password is never in git. See [LAB cluster](deployment/lab-cluster.md). |
 | `k8s/local/kustomization.yaml` | `secretGenerator` `mockingbird-dev-db` | Throwaway credentials for the k3d-only database, labelled LOCAL DEV ONLY. See [Local k3d](deployment/local-k3d.md). |
 | `MOCKINGBIRD_DEV_PASSWORD` | Demo login password | Read by `DataInitializer` for both seeded logins (`jordan.ellis` and `riley.chen`); defaults to `mockingbird`. |
-| GitHub secrets | `FACTORY_API_KEY`, `FACTORY_WIKI_PR_TOKEN` (optional), `SLACK_ALERTS_WEBHOOK_URL` | Used by the Droid, wiki refresh and alerting workflows. See [Configuration](reference/configuration.md#ci-secrets). |
+| GitHub secrets | `FACTORY_API_KEY`, `FACTORY_WIKI_PR_TOKEN` (optional), `QA_EVIDENCE_TOKEN` (optional), `SLACK_ALERTS_WEBHOOK_URL` | Used by the Droid, QA, wiki refresh and alerting workflows. See [Configuration](reference/configuration.md#ci-secrets). |
 
 ### The demo seed
 
@@ -173,10 +173,11 @@ Limits worth knowing:
 | GitHub secret scanning and push protection | Repository settings | Enabled, per `AGENTS.md`. Not visible in the repo itself. |
 | DAST | `.github/workflows/dast.yml` | Builds a production-mode jar, starts it against a Postgres service, waits for health, and runs a ZAP baseline scan against `/login` on push to `master`, weekly, and on demand. `fail_action: false`, so findings never fail the build; the report is uploaded as `zap-baseline-report` for 30 days. Being unauthenticated, it only sees the login page and public endpoints. |
 | Dependabot | `.github/dependabot.yml` | Weekly updates for Gradle, root npm, `qa/` npm, Docker and GitHub Actions, with cooldowns before a new release is proposed: 3 days for patch, 7 for minor, 14 for major, 5 by default (Docker sets only default and major; Actions only default). |
-| CODEOWNERS | `.github/CODEOWNERS` | `* @ajpahl1008`: the owner must review every path. |
-| Branch protection | Repository settings | Per `AGENTS.md`: CI must pass, no force-push or deletion, conversations resolved. Admins can bypass. |
-| Droid review | `.github/workflows/droid-review.yml` | `Factory-AI/droid-action@main` with `automatic_review: true` and `automatic_security_review: true` on non-draft PRs. Needs `FACTORY_API_KEY`. |
+| CODEOWNERS | `.github/CODEOWNERS` | `* @ajpahl1008`: GitHub requests the owner's review on every path. The ruleset requires no approvals, so the review is not enforced. |
+| Branch protection | `Protect Master` ruleset in repository settings | Per `AGENTS.md`: a PR is required, plus five passing status checks (`Build and test`, `Fast checks (lint, static analysis)`, `Analyze (java-kotlin)`, `droid-review`, `Functional QA (Droid)`) on a branch up to date with `master`. Force-pushes and deletion are blocked, and there are no bypass actors. Approvals and conversation resolution are not required, and gitleaks is not among the required checks. |
+| Droid review | `.github/workflows/droid-review.yml` | `Factory-AI/droid-action@main` with `automatic_review: true` and `automatic_security_review: true` on non-draft PRs, rerun on every push (`synchronize`). Required check. Needs `FACTORY_API_KEY`. |
 | Wiki refresh | `.github/workflows/droid-wiki-refresh.yml` | Workflow-level `permissions: contents: read`; only the `wiki-publish` job gets `contents: write` and `pull-requests: write`, so the job that runs `droid exec --auto high "/wiki"` over the repository cannot push or open PRs. The PR step uses `peter-evans/create-pull-request` pinned to a commit SHA. Two weaker spots: Droid is installed with an unpinned `curl -fsSL https://app.factory.ai/cli \| sh`, and the optional `FACTORY_WIKI_PR_TOKEN` is a PAT that should stay scoped to this repository with contents and pull-requests write only. See [Tooling](how-to-contribute/tooling.md#wiki-refresh). |
+| Functional QA | `.github/workflows/qa.yml` | Workflow-level `permissions: contents: read`; only the `comment` job gets `pull-requests: write`, and it never sees `FACTORY_API_KEY` or the per-run demo password. The `qa` job runs `droid exec --auto high` only for non-draft PRs from this repository (forks and `dependabot[bot]` are skipped), so the skill files that steer the agent come from trusted branches. The per-run demo password is random (`openssl rand -hex 16`), masked in logs, and replaced with `***` in every result file before the artifact upload. Droid is installed with the same unpinned `curl \| sh` as the wiki refresh, and `QA_EVIDENCE_TOKEN` is a classic `repo`-scope PAT exposed to the agent step, so leave it unset while `video_evidence` is off. See [Functional QA](how-to-contribute/functional-qa.md#the-qa-workflow). |
 
 ### Reporting vulnerabilities
 

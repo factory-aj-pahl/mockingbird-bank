@@ -57,7 +57,7 @@ Comments explain why, not what. Many classes have a Javadoc paragraph on the rea
 ## Tests
 
 - Unit tests use Mockito for services and plain JUnit for entities.
-- Integration tests use `@SpringBootTest` with a Testcontainers `postgres:16-alpine`.
+- Integration tests use `@SpringBootTest` with a Testcontainers `postgres:16-alpine`. A migration test that needs data between two schema versions drives Flyway directly instead, as `src/test/java/com/mockingbirdbank/ProgramMigrationTest.java` does through the `flyway-core` test dependency in `build.gradle`.
 - Tests reuse production constants rather than copying them: `DataInitializer.DEV_USERNAME`, `ResilienceConfig.defaultConfig()`.
 
 See [Testing](testing.md).

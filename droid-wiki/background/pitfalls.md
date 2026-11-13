@@ -8,6 +8,8 @@ These are the places where a reasonable change in Mockingbird Bank breaks someth
 
 `AccountDetailView.setParameter` relies on `AccountService.requireAccount(accountId)` to refuse other holders' accounts. `requireAccount` resolves `currentHolder()`, loads the account, and keeps it only if `isOwnedBy` matches, throwing the same `IllegalArgumentException` for a foreign ID as for a missing one, so the page shows not-found and cannot be used to probe which IDs exist. `TransactionService.forAccount` and `ProgramService.evaluationFor` do not check ownership themselves; they are safe only because the view calls them after `requireAccount` has returned. Keep that order in any new per-account view, or load the account through `requireAccount` first. The seed creates two holders, so a mistake here is visible with the demo data. See [account detail](../features/account-detail.md#ownership) and [Security](../security.md#account-detail-ownership-check).
 
+The Droid QA flow W11 seeds a second, login-less holder with `.factory/skills/qa-web/sql/seed-other-holder.sql` and opens its account as Jordan. It passes when the page shows the same not-found result as an unknown ID; a rendered foreign account is a high-severity FAIL, because it means the `requireAccount` check regressed. Before `78a2f03` (PR #17, SED-847) there was no such check and W11 failed on every run. See [functional QA](../how-to-contribute/functional-qa.md#flow-menu).
+
 ### The seed runs on any empty database
 
 `DataInitializer.run` returns early only if `account_holder` already has rows. Point the app at any fresh database, including a shared or LAB one, and it creates the `jordan.ellis` and `riley.chen` logins, both with the password from `MOCKINGBIRD_DEV_PASSWORD` or the documented default `mockingbird`. There is no profile or flag guarding it. The class Javadoc still says "swap for a proper migration tool before this becomes a shared environment", although Flyway already exists. In any environment someone else can reach, set `MOCKINGBIRD_DEV_PASSWORD` or pre-populate the holder table before first start.
@@ -54,7 +56,7 @@ Vaadin keeps each session's component tree in that pod's memory. A second replic
 
 ### Business outcomes do not count as breaker failures
 
-`protectedCall` in `AccountService` and `TransactionService` wraps only the repository call. The `orElseThrow` for a missing account runs outside it, so a burst of 404s never opens the breaker; only exceptions from the database do. Keep new `orElseThrow`, ownership checks and validation outside `protectedCall`.
+`protectedCall` in `AccountService`, `TransactionService` and `ProgramService` wraps only the repository call. The `orElseThrow` for a missing account runs outside it, so a burst of 404s never opens the breaker; only exceptions from the database do. Keep new `orElseThrow`, ownership checks and validation outside `protectedCall`.
 
 A related gap: once a breaker opens, `ServiceUnavailableException` is caught only on the reveal paths (`AccountNumberDisplay.onToggle`, `DashboardView.toggleAll`) and in the program sections (`ProgramLookup`). The `DashboardView` constructor, `MainLayout`'s `currentHolder()` call and `AccountDetailView.setParameter` let it reach `GlobalErrorHandler`, so the user gets Vaadin's generic error page. `AppUserDetailsService` is not behind a breaker at all. See [resilience](../systems/resilience.md).
 
@@ -72,9 +74,9 @@ Spring's relaxed binding recovers word boundaries from underscores. `MOCKINGBIRD
 
 Harness substitutes `<+artifact.image>` and `<+secrets.getValue(...)>` only inside a Values YAML file, never inside raw manifests. Commit `b3f9fd0` moved them into `k8s/values.yaml`, and the manifests read them as Go templates (`{{ .Values.image }}`). Put any new Harness expression in `k8s/values.yaml` and reference it from the manifest. See [LAB cluster](../deployment/lab-cluster.md).
 
-### A plain docker build reports 0.1.0-unknown
+### A plain docker build reports 0.3.0-unknown
 
-The Docker build context excludes `.git`, so version and commit arrive as build args from `scripts/build-metadata.sh`. Without them, `build.gradle` falls back to `<baseVersion>-unknown`, so the app reports version `0.1.0-unknown` with commit and branch `unknown`. The Dockerfile comment and `AGENTS.md` say it reports just "unknown". Use `./createLocalDockerImage.zsh`, `./scripts/k3d-deploy.sh`, or pass `$(scripts/build-metadata.sh --docker-args)`. See [build version](../features/build-version.md).
+The Docker build context excludes `.git`, so version and commit arrive as build args from `scripts/build-metadata.sh`. Without them, `build.gradle` falls back to `<baseVersion>-unknown`, so the app reports version `0.3.0-unknown` (`<baseVersion>` is `0.3.0` today) with commit and branch `unknown`. The Dockerfile comment and `AGENTS.md` say it reports just "unknown". Use `./createLocalDockerImage.zsh`, `./scripts/k3d-deploy.sh`, or pass `$(scripts/build-metadata.sh --docker-args)`. See [build version](../features/build-version.md).
 
 ### /actuator/metrics is not exposed
 
@@ -92,10 +94,22 @@ The Docker build context excludes `.git`, so version and commit arrive as build 
 
 ### Testcontainers in the dev container needs a host override
 
-Inside the dev container, Testcontainers starts sibling containers on Docker's default bridge network, which the dev container (on a Compose network) cannot reach. `.devcontainer/docker-compose.yml` sets `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` to route through the host. If you build a different container setup, or run on a Docker engine without `host.docker.internal`, `ApplicationSmokeTest` and `AccountTransactionQueryPerformanceTest` will hang or fail to connect. Commit `1215ae5` lists this along with two other dev-container traps.
+Inside the dev container, Testcontainers starts sibling containers on Docker's default bridge network, which the dev container (on a Compose network) cannot reach. `.devcontainer/docker-compose.yml` sets `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal` to route through the host. If you build a different container setup, or run on a Docker engine without `host.docker.internal`, `ApplicationSmokeTest`, `AccountTransactionQueryPerformanceTest` and `ProgramMigrationTest` will hang or fail to connect. Commit `1215ae5` lists this along with two other dev-container traps.
 
 ### A bad FACTORY_WIKI_PR_TOKEN looks like a missing credential
 
 When the `FACTORY_WIKI_PR_TOKEN` secret is set, `peter-evans/create-pull-request` in `.github/workflows/droid-wiki-refresh.yml` replaces the checkout credentials with that token, and the `github.token` fallback is never used. If GitHub rejects the token (expired, revoked, mistyped, or pasted with whitespace), both the fetch of `factory/droid-wiki` and the push fail with "could not read Username for 'https://github.com'", which reads like no credential was configured at all. A valid token without enough permission fails differently, with a 403 on the push. The publish step has `continue-on-error: true`, so the run still shows success and only a `::warning::` annotation reports it.
 
 The first refresh runs on `master` hit exactly this. `2b3e914` (PR #5) moved both checkout steps from v4 to v6 on the theory that the checkout version was the cause; the next run failed the same way, and replacing the secret with a valid fine-grained token fixed it. The run logs show the same failure under checkout v4 and v6. If the warning appears, check the token before changing the workflow. See [tooling](../how-to-contribute/tooling.md#wiki-refresh).
+
+### A green QA check does not mean QA passed
+
+Every setup and agent step in `.github/workflows/qa.yml` has `continue-on-error: true`, so the "Functional QA (Droid)" job normally succeeds even when the agent reports FAIL or BLOCKED rows, or crashes. The result is the "QA Report" comment, not the check status. Since the check became required on `master` (`AGENTS.md`, `cf064b0`), this is easier to misread: a green required check looks like a gate that passed, yet a PR with FAIL rows can merge. Read the comment. If the job was skipped (draft, fork or Dependabot PR), there is no comment at all, which is easy to mistake for a pass. See [functional QA](../how-to-contribute/functional-qa.md#the-qa-workflow).
+
+### The required Droid review has no fork or Dependabot guard
+
+`droid-review` is a required check, and `.github/workflows/droid-review.yml` skips only drafts. Unlike `.github/workflows/qa.yml`, it does not skip fork PRs or `dependabot[bot]`. GitHub gives neither of those runs the repository's `FACTORY_API_KEY` (Dependabot runs see only Dependabot secrets), so the review step most likely fails there and blocks the merge. The history has no Dependabot PR since the check became required, so this is not yet confirmed. If it happens, add a `FACTORY_API_KEY` Dependabot secret or copy the guard from `qa.yml`, where a skipped job counts as passing.
+
+### Seeding the QA holder before first start breaks the demo login
+
+`DataInitializer` seeds Jordan and Riley only when `account_holder` is empty. Running `.factory/skills/qa-web/sql/seed-other-holder.sql` against a fresh database, before the app has started once, leaves one holder with no login and skips the demo seed, so both demo sign-ins then fail with valid credentials. Run the cleanup SQL and restart the app. On k3d and local, the database outlives the run, so a crashed QA run can leave "QA Other Checking" behind; both SQL files are safe to re-run.

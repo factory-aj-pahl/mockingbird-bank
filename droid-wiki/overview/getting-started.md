@@ -59,6 +59,8 @@ cd qa && npm install && npx playwright install chromium && cd ..   # once
 
 The script starts its own Postgres on port 5433, runs `bootRun`, waits for `/actuator/health`, then drives Chromium through sign-in, dashboard, account detail, sign-out and a wrong-password attempt.
 
+In Droid, `/qa` does a diff-driven version of this: it picks the flows your change affects, tests the working tree on k3d (or `./scripts/dev-up.sh` as a fallback) and writes `qa-results/report.md`. See [Functional QA](../how-to-contribute/functional-qa.md).
+
 ## Check what is running
 
 ```bash

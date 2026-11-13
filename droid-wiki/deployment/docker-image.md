@@ -37,7 +37,7 @@ The runtime image contains a JRE and one jar, nothing else from the source tree.
 
 The run stage also sets `org.opencontainers.image.title="mockingbird-bank"` and a `description` label. The description is set explicitly so the Ubuntu text from the JRE base image does not show through. Read them with `docker inspect`.
 
-A `docker build .` without build args still succeeds. Commit and branch then read `unknown` and the version becomes `0.1.0-unknown`. The resolution rules are described in [Build version](../features/build-version.md).
+A `docker build .` without build args still succeeds. Commit and branch then read `unknown` and the version becomes `0.3.0-unknown`. The resolution rules are described in [Build version](../features/build-version.md).
 
 ## .dockerignore
 
@@ -75,7 +75,7 @@ All three scripts live at the repository root, are zsh, and require a `<version>
 
 The build scripts leave the `$(./scripts/build-metadata.sh --docker-args)` substitution unquoted on purpose: zsh word-splits it into separate `--build-arg` flags.
 
-The `<version>` argument is only the image tag. The version the app reports comes from `build-metadata.sh` (`<baseVersion>-<short sha>`), so `createLocalDockerImage.zsh 1.0.0` produces an image tagged `1.0.0` that reports something like `0.1.0-5fbf51f` at `/actuator/info`.
+The `<version>` argument is only the image tag. The version the app reports comes from `build-metadata.sh` (`<baseVersion>-<short sha>`), so `createLocalDockerImage.zsh 1.0.0` produces an image tagged `1.0.0` that reports something like `0.3.0-78a2f03` at `/actuator/info`.
 
 ### .env and .env.example
 

@@ -1,6 +1,6 @@
 # Testing
 
-The suite has 24 JUnit classes (109 test methods) under `src/test/java/com/mockingbirdbank/`, mirroring the main packages, plus a 4-test Playwright suite in `qa/` that drives a real browser. `./gradlew test` runs the JUnit side and needs Docker for the Testcontainers-backed classes.
+The suite has 24 JUnit classes (109 test methods) under `src/test/java/com/mockingbirdbank/`, mirroring the main packages, plus a 4-test Playwright suite in `qa/` that drives a real browser. `./gradlew test` runs the JUnit side and needs Docker for the Testcontainers-backed classes. On top of that, a Droid skill does diff-driven functional QA in a real browser, locally with `/qa` and on pull requests through `.github/workflows/qa.yml` (see [Functional QA](functional-qa.md)).
 
 ## Test layers
 
@@ -12,6 +12,8 @@ graph TD
     B --> E["JaCoCo report and thresholds"]
     F["Playwright suite in qa"] --> G["scripts/run-interactive-qa.sh"]
     G --> H["bootRun against throwaway Postgres on 5433"]
+    Q["Droid qa skill"] --> R["/qa locally, qa.yml on PRs"]
+    R --> S["QA Report: flows picked from the diff"]
 ```
 
 ### Unit tests
@@ -53,6 +55,10 @@ The four tests in `qa/tests/dashboard.spec.ts`:
 | the build version shows directly under the wordmark | `#build-version` text format, tooltip, position under the wordmark |
 
 One-time setup: `cd qa && npm install && npx playwright install chromium`. The suite is not run by CI.
+
+### Functional QA with Droid
+
+`.factory/skills/qa/SKILL.md` and `.factory/skills/qa-web/SKILL.md` let Droid test a change as a user would. The agent reads the git diff, maps changed paths to flows (W1 to W15: sign-in, dashboard, detail, reveal, build version, dark mode, sign-out, unknown and cross-account access, Actuator access, flag variants, database outage, account programs), drives the browser through the `droid-control` plugin, and writes `qa-results/report.md`. It does not run this suite or any other automated tests, and it never replaces `./gradlew build`. `.github/workflows/qa.yml` runs it on non-draft same-repository PRs that touch app code and keeps one sticky "QA Report" comment updated. The check is required on `master`, but its job passes whatever QA finds, so read the comment. Details are in [Functional QA](functional-qa.md).
 
 ## Running tests
 
@@ -120,8 +126,8 @@ JaCoCo 0.8.12 runs as part of `check`. `jacocoTestReport` writes XML and HTML (`
 
 - `AccountDetailViewTest`, `DashboardViewTest`, `ProgramCardTest` and `ProgramLookupTest` are the only JUnit tests in `com.mockingbirdbank.ui`. `AccountDetailViewTest` does not cover the program section; its fallback is `ProgramLookup`, which `ProgramLookupTest` covers. `AccountNumberDisplay` has no unit test, and its 30-second auto-hide is not covered by Playwright either.
 - `CircuitBreakerBehaviorTest` checks tripping only, not recovery through half-open, although `AGENTS.md` says it verifies both.
-- `AccountServiceTest.requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne` covers the ownership check at the service level, but no test drives `/accounts/{id}` for another holder's account end to end, and the Playwright suite signs in only as `jordan.ellis`. See [Security](../security.md#account-detail-ownership-check).
-- The Playwright suite runs only on demand. The post-publish smoke test in `.github/workflows/publish-image.yml` checks only that the image boots and is healthy.
+- `AccountServiceTest.requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne` covers the ownership check at the service level, but no JUnit or Playwright test drives `/accounts/{id}` for another holder's account end to end, and the Playwright suite signs in only as `jordan.ellis`. The Droid QA flows W11 (as `jordan.ellis` against a QA-seeded holder) and W15 step 6 (as `riley.chen` against one of Jordan's accounts) probe that path in a browser. See [Security](../security.md#account-detail-ownership-check) and [Functional QA](functional-qa.md#flow-menu).
+- The Playwright suite runs only on demand. The Droid QA workflow runs flows on PRs that touch app code, and although its check is required on `master`, the job never fails on a QA finding. The post-publish smoke test in `.github/workflows/publish-image.yml` checks only that the image boots and is healthy.
 - The QA script uses `postgres:17.2` while Testcontainers, `docker-compose.yml` and k3d use `postgres:16-alpine`.
 
 See [Debugging](debugging.md) for reading test failures, and [Tooling](tooling.md) for the Gradle wiring.

@@ -29,6 +29,7 @@ The repository is a solo-maintained demo project (owner `ajpahl1008` in `.github
 | Observability | Micrometer, OpenTelemetry (OTLP), JDK Flight Recorder | `src/main/java/com/mockingbirdbank/observability/` |
 | Build | Gradle wrapper with Spotless, Checkstyle, PMD, CPD, JaCoCo | `build.gradle`, `config/` |
 | Browser QA | Playwright (separate npm project) | `qa/` |
+| Functional QA | Droid `qa` skill with the `droid-control` plugin | `.factory/skills/qa/`, `.github/workflows/qa.yml` |
 | Deployment | Docker, GitHub Actions, Harness-templated k8s, local k3d | `Dockerfile`, `.github/workflows/`, `k8s/` |
 
 ## Quick links
@@ -41,4 +42,4 @@ The repository is a solo-maintained demo project (owner `ajpahl1008` in `.github
 - [Deployment](../deployment/index.md) and [How to monitor](../how-to-monitor/index.md): running it
 - [Reference](../reference/index.md): configuration, data model, dependencies
 
-The repository's own docs are `AGENTS.md` (the most complete reference), `README.md`, `docs/architecture.md`, and the runbooks in `docs/runbooks/`.
+The repository's own docs are `AGENTS.md` (the most complete reference), `README.md` (titled "Mockingbird Bank - Retail" since PR #12 on 2026-11-07; earlier that day PR #10 renamed it "Mockingbird Bank Retail Website" and PR #11 changed it back to "Mockingbird Bank"), `docs/architecture.md`, and the runbooks in `docs/runbooks/`.

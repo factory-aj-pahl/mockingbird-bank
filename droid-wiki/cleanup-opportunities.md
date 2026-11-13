@@ -1,6 +1,6 @@
 # Cleanup opportunities
 
-Maintenance work found while documenting Mockingbird Bank, checked against the code at `2b3e914`. Items are tagged **high**, **medium** or **low** priority. High means a security or correctness problem; low means polish. For the traps behind several of these, see [pitfalls](background/pitfalls.md).
+Maintenance work found while documenting Mockingbird Bank, first checked against the code at `2b3e914`. Every item, file and line reference was rechecked at `78a2f03`. Items are tagged **high**, **medium** or **low** priority. High means a security or correctness problem; low means polish. For the traps behind several of these, see [pitfalls](background/pitfalls.md).
 
 ## Summary
 
@@ -41,25 +41,28 @@ Maintenance work found while documenting Mockingbird Bank, checked against the c
 | Low | Comment points to `k8s/01-postgres-secret.yaml.example`, deleted in `278a4eb` | `src/main/resources/application.yml:7` |
 | Low | `CircuitBreakerBehaviorTest` is said to verify "trip/recover"; it only tests tripping | `AGENTS.md:535` |
 | Low | Comment calls `product.events` a "Micrometer registry"; it is a counter in the shared `MeterRegistry` | `src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java:38-40` |
-| Low | Flag overrides need "no code change or redeploy"; they bind at startup, so a restart is needed | `AGENTS.md:250`, `src/main/resources/application.yml:94` |
+| Low | Flag overrides need "no code change or redeploy"; they bind at startup, so a restart is needed | `AGENTS.md:250`, `src/main/resources/application.yml:92-94` |
 | Low | `AccountCard` listed as a `FeatureFlagService` user; `DashboardView` makes that decision | `AGENTS.md:254` |
-| Low | A build without args "reports `unknown`"; the version is actually `0.1.0-unknown` (commit and branch are `unknown`) | `AGENTS.md:315`, `Dockerfile:11` |
+| Low | A build without args "reports `unknown`"; the version is actually `0.3.0-unknown` (commit and branch are `unknown`) | `AGENTS.md:315`, `Dockerfile:11` |
+| Low | The example version `0.1.0-09f771a` predates the bumps of `baseVersion` to `0.2.0` in `3e172bf` and `0.3.0` in `78a2f03`; a non-release build now reports `0.3.0-<short sha>` | `AGENTS.md:305`, `AGENTS.md:322` |
+| Low | Header comment calls the QA check "informational only" and says not to add it to branch protection; the `Protect Master` ruleset requires it | `.github/workflows/qa.yml:3-6` |
+| Low | CODEOWNERS "requires review from the repo owner on every path", but the ruleset paragraph says no approvals are required, so the owner's review is requested, not enforced | `AGENTS.md:449-450`, `AGENTS.md:484-485` |
 | Low | Tracing section does not mention that k3d sets `MANAGEMENT_TRACING_SAMPLING_PROBABILITY=0.0` | `AGENTS.md` ("Distributed tracing"), see `k8s/local/kustomization.yaml:42` |
 
 ## Inefficiencies and UX nits
 
 - **Low: duplicate queries on dashboard load.** `MainLayout` and `DashboardView` each call `currentHolder()`, and `totalBalance(holder)` re-runs `accountsFor(holder)` that the view just ran (`src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:59-61`, `src/main/java/com/mockingbirdbank/service/AccountService.java:132-136`). Summing the list the view already has would remove one query; caching the holder per request would remove another.
-- **Low: "Across 1 accounts".** No singular form at `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:126`.
-- **Low: mixed date formats.** The account header prints `openedAt` as ISO `LocalDate` (`AccountDetailView.java:169`) while the grid uses `MM/dd/yyyy` (`AccountDetailView.java:46`).
+- **Low: "Across 1 accounts".** No singular form at `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:126`. The `showAccountCount` line further down the same view does handle it (`DashboardView.accountCountSummary(int)`, added in `3e172bf`), so with that flag on a one-account holder such as `riley.chen` sees "Across 1 accounts" and "You have 1 account" on one screen; the hero could reuse the same helper.
+- **Low: mixed date formats.** The account header prints `openedAt` as ISO `LocalDate` (`src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:169`) while the grid uses `MM/dd/yyyy` (`src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java:46`).
 - **Low: dark-mode button label never changes.** It always reads "Dark mode" (`src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java:69`), even when dark mode is on.
 - **Low: no `@PageTitle` on the main views.** Only `LoginView` sets one; `DashboardView` and `AccountDetailView` do not.
-- **Low: primary account line ignores `showAccountNumberOnDashboard`.** `balanceHero` always adds `primaryAccountLine` (`DashboardView.java:141-143`). With the flag off, the card numbers disappear but the hero still shows one. With it on, the first (checking) account has two independent reveal widgets on the same page.
-- **Low: mixed `actions/checkout` versions.** `.github/workflows/droid-wiki-refresh.yml` uses `actions/checkout@v6` in both jobs while every other workflow uses `@v5`. Nothing depends on the difference (see [pitfalls](background/pitfalls.md#a-bad-factory_wiki_pr_token-looks-like-a-missing-credential)), so either direction works; moving the other nine checkout steps up to v6 avoids touching the wiki workflow. Dependabot's GitHub Actions entry should eventually propose that bump.
-- **Low: flag defaults are written twice.** `FeatureFlagsProperties` field initializers and `src/main/resources/application.yml:95-102` must agree, and nothing checks that.
+- **Low: primary account line ignores `showAccountNumberOnDashboard`.** `balanceHero` always adds `primaryAccountLine` (`src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:141-143`). With the flag off, the card numbers disappear but the hero still shows one. With it on, the first (checking) account has two independent reveal widgets on the same page.
+- **Low: mixed `actions/checkout` versions.** `.github/workflows/droid-wiki-refresh.yml` uses `actions/checkout@v6` in both jobs while every other workflow uses `@v5`. Nothing depends on the difference (see [pitfalls](background/pitfalls.md#a-bad-factory_wiki_pr_token-looks-like-a-missing-credential)), so either direction works; moving the other ten checkout steps up to v6 avoids touching the wiki workflow. Dependabot's GitHub Actions entry should eventually propose that bump.
+- **Low: flag defaults are written twice.** `FeatureFlagsProperties` field initializers and `src/main/resources/application.yml:96-102` must agree, and nothing checks that.
 
 ## Test gaps
 
-- **Low:** the ownership check in `requireAccount` is tested only at the service level (`AccountServiceTest`). No test opens `/accounts/{id}` for another holder's account end to end, and the Playwright suite signs in only as `jordan.ellis`.
+- **Low:** the ownership check in `requireAccount` is tested in `AccountServiceTest` and, with a mocked service, in `AccountDetailViewTest.unknownOrAnotherHoldersAccountIdGetsTheSameNotFoundPage`. No automated test opens `/accounts/{id}` for another holder's account against a real database; only the Droid QA flow W11 does. The Playwright suite signs in only as `jordan.ellis` unless `MOCKINGBIRD_DEV_USERNAME` is set.
 - **Low:** the only tests under `src/test/java/com/mockingbirdbank/ui/` are `AccountDetailViewTest` (routing, ID parsing and the not-found path), `DashboardViewTest` (account count line and programs section), `ProgramCardTest` and `ProgramLookupTest`. `AccountNumberDisplay` (reveal, hide, the 30-second auto-hide generation check, detach) has no unit test even though its logic is non-trivial. Plain JUnit can construct it with a mocked `AccountService`.
 - **Low:** `CircuitBreakerBehaviorTest` covers closed to open but not the half-open trial and recovery.
 - **Low:** no test covers the `ServiceUnavailableException` path for the `accounts` or `transactions` breaker in `DashboardView` or `AccountDetailView`. Only the `programs` fallback is tested (`DashboardViewTest.programsUnavailableStillShowsTheAccounts`, `DashboardViewTest.programsDatabaseErrorBeforeTheBreakerOpensStillShowsTheAccounts` and `ProgramLookupTest`).
@@ -84,25 +87,28 @@ Largest tracked files:
 
 | File | Lines |
 |---|---|
-| `build.gradle` | 692 |
-| `AGENTS.md` | 573 |
-| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | 239 |
-| `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | 208 |
-| `.github/workflows/publish-image.yml` | 206 |
-| `scripts/k3d-deploy.sh` | 170 |
-| `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | 169 |
+| `build.gradle` | 695 |
+| `AGENTS.md` | 650 |
+| `.factory/skills/qa-web/SKILL.md` | 420 |
+| `.github/workflows/qa.yml` | 367 |
+| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | 317 |
+| `src/test/java/com/mockingbirdbank/service/ProgramServiceTest.java` | 317 |
+| `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | 240 |
+| `src/main/java/com/mockingbirdbank/service/ProgramService.java` | 217 |
+
+The Gradle wrapper script `gradlew` (248 lines) is generated and left out.
 
 Most-changed files (`git log --name-only`, commits touching each file):
 
 ```mermaid
 xychart-beta horizontal
     title "Commits touching each file"
-    x-axis ["build.gradle", "AGENTS.md", "application.yml", "DashboardView", "AccountDetailView", "AccountServiceTest", "AccountCard", "MainLayout", "AccountService", "SecurityConfig"]
-    y-axis "Commits" 0 --> 15
-    bar [14, 14, 7, 7, 6, 5, 5, 5, 5, 5]
+    x-axis ["AGENTS.md", "build.gradle", "application.yml", "DashboardView", "AccountDetailView", "README.md", "AccountServiceTest", "AccountCard", "AccountService", ".gitignore"]
+    y-axis "Commits" 0 --> 22
+    bar [21, 15, 9, 9, 7, 7, 6, 6, 6, 6]
 ```
 
-`build.gradle` is both the largest and the most-changed file. Beyond dependencies, it holds the version and git metadata logic, test-retry and flaky reporting, per-test timings, coverage gates, Git hook installation, Harness Test Intelligence settings and the build-performance and code-quality summaries. **Medium:** moving the reporting logic into `buildSrc` or a convention plugin would make it reviewable in pieces. `DashboardView` is the largest Java class; the reveal-all toolbar logic (`revealAllToolbar`, `toggleAll`, `updateRevealAllToggle`) could move into its own component.
+`build.gradle` is the largest file and the most-changed one after `AGENTS.md`. Beyond dependencies, it holds the version and git metadata logic, test-retry and flaky reporting, per-test timings, coverage gates, Git hook installation, Harness Test Intelligence settings and the build-performance and code-quality summaries. **Medium:** moving the reporting logic into `buildSrc` or a convention plugin would make it reviewable in pieces. `DashboardView` is the largest Java class; the reveal-all toolbar logic (`revealAllToolbar`, `toggleAll`, `updateRevealAllToggle`) could move into its own component.
 
 ## Dependency freshness
 

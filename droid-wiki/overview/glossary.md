@@ -24,11 +24,21 @@ Terms used in the code, configuration and this wiki.
 | Analytics event log | `build/logs/analytics-events.log`, the dedicated rolling file for analytics lines. |
 | Correlation ID | Per-request ID from `X-Correlation-Id` (or a new UUID), put in SLF4J MDC by `CorrelationIdFilter` and echoed in the response. |
 | Circuit breaker | Resilience4j breaker named `accounts`, `transactions` or `programs` around repository calls. When open, calls fail fast with `ServiceUnavailableException`. |
-| Build version | `<baseVersion>-<short sha>[-dirty]`, such as `0.1.0-09f771a`. Shown in the top bar and at `/actuator/info`. |
+| Build version | `<baseVersion>-<short sha>[-dirty]`, such as `0.3.0-78a2f03`. Shown in the top bar and at `/actuator/info`. |
 | Scrubbing | Redaction of passwords, tokens, auth headers and card-like numbers from every log line by `ScrubbingMessageConverter`. |
 | Flyway baseline | `baseline-on-migrate: true`, which marks V1 as applied on databases that predate Flyway. |
 | LAB | The on-premises Kubernetes environment deployed through Harness, with an external Postgres and a MetalLB IP. |
 | k3d / `dev-k8s` | The local Kubernetes cluster (context `k3d-dev-k8s`) that `scripts/k3d-deploy.sh` deploys to. |
 | Harness | The CD tool that templates `k8s/*.yaml` using `<+...>` expressions resolved from `k8s/values.yaml`. |
 | SED | The Linear team key for this project's issues (for example `SED-649`). |
+| Auto-merge | GitHub's queued squash merge (`gh pr merge <n> --auto --squash`) that `AGENTS.md` asks for on PRs into `master`. See [How to contribute](../how-to-contribute/index.md#auto-merge). |
+| Rolling wiki PR | The single "docs: refresh wiki" PR from the `factory/droid-wiki` branch that `.github/workflows/droid-wiki-refresh.yml` opens and updates on each refresh. Kept open, never merged, no auto-merge. See [Tooling](../how-to-contribute/tooling.md#the-rolling-wiki-pr). |
+| `Protect Master` | The repository ruleset on `master`: PR required, five required status checks, branch up to date with `master`, no force-push or deletion, no bypass actors. See [How to contribute](../how-to-contribute/index.md#review-and-merge-gates). |
+| `approved` label | Applied by hand to a Linear-tracked feature PR to authorize its version-only bump; auto-merge waits for it. |
 | `mbb-ops` | The Slack channel that CI and post-deploy alerts post to. |
+| Functional QA / `/qa` | The Droid skill in `.factory/skills/qa/` that tests a diff through the real UI and writes a QA Report. See [Functional QA](../how-to-contribute/functional-qa.md). |
+| QA flow (W1 to W14) | One numbered test in `.factory/skills/qa-web/SKILL.md`, such as W6 (account number reveal) or W11 (cross-account isolation). |
+| QA target | Where `/qa` tests: `k3d` (default), `local`, `ci` (the PR runner) or `lab` (never for branch QA). |
+| `other_holder` | A second, login-less holder that QA seeds with SQL to probe cross-account access, then deletes. |
+| droid-control | The Factory plugin (`droid-control@factory-plugins`, enabled in `.factory/settings.json`) the QA skill uses to drive the browser. |
+| QA Report | The sticky PR comment, marked `<!-- qa-report -->`, that `.github/workflows/qa.yml` posts and updates. |
