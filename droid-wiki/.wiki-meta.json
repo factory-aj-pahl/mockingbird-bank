@@ -2,7 +2,7 @@
   "generatedAt": "2026-11-04T21:44:43Z",
   "commitHash": "f97b7a41fdab93c4912abaee9d72fa45a5fc673d",
   "branch": "master",
-  "pageCount": 47,
+  "pageCount": 48,
   "topLevelSections": [
     "overview",
     "by-the-numbers",
@@ -37,6 +37,7 @@
     "features/dashboard.md",
     "features/account-detail.md",
     "features/account-number-reveal.md",
+    "features/account-programs.md",
     "features/sign-in.md",
     "features/feature-flags.md",
     "features/build-version.md",

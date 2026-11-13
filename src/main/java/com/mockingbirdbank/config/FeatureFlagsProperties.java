@@ -44,4 +44,10 @@ public class FeatureFlagsProperties {
      * Whether the dashboard shows a "You have N accounts" line under its "Your accounts" heading.
      */
     private boolean showAccountCount = false;
+
+    /**
+     * Whether the dashboard and account pages show the signed-in customer's programs (Regular,
+     * Youth Savings): the accounts in each one and a message for every unmet program rule.
+     */
+    private boolean showAccountPrograms = false;
 }

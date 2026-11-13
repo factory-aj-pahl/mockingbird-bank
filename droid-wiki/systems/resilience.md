@@ -2,7 +2,7 @@
 
 Active contributors: ajpahl1008 (AJ Pahl)
 
-`AccountService` and `TransactionService` wrap every repository call in a Resilience4j circuit breaker. When Postgres keeps failing, the breaker opens and calls fail immediately with `ServiceUnavailableException` instead of waiting on the database.
+`AccountService`, `TransactionService` and `ProgramService` wrap every repository call in a Resilience4j circuit breaker. When Postgres keeps failing, the breaker opens and calls fail immediately with `ServiceUnavailableException` instead of waiting on the database.
 
 ## Purpose
 
@@ -15,7 +15,7 @@ src/main/java/com/mockingbirdbank/resilience/
   ResilienceConfig.java              shared CircuitBreakerConfig + registry bean
   ServiceUnavailableException.java   thrown when a breaker rejects a call
 src/test/java/com/mockingbirdbank/resilience/
-  CircuitBreakerBehaviorTest.java    trips both real breakers against failing repositories
+  CircuitBreakerBehaviorTest.java    trips the accounts and transactions breakers against failing repositories
 ```
 
 The breakers themselves are created and used in `src/main/java/com/mockingbirdbank/service/`.
@@ -27,7 +27,7 @@ The breakers themselves are created and used in `src/main/java/com/mockingbirdba
 | `ResilienceConfig.defaultConfig()` | `src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java` | Static factory for the one `CircuitBreakerConfig` every breaker uses. |
 | `CircuitBreakerRegistry` bean | `src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java` | Registry built from `defaultConfig()` and bound to Micrometer. |
 | `ServiceUnavailableException` | `src/main/java/com/mockingbirdbank/resilience/ServiceUnavailableException.java` | `RuntimeException` wrapping Resilience4j's `CallNotPermittedException`. |
-| `protectedCall` | `src/main/java/com/mockingbirdbank/service/AccountService.java`, `src/main/java/com/mockingbirdbank/service/TransactionService.java` | Private helper in each service that runs a repository supplier through its breaker. |
+| `protectedCall` | `src/main/java/com/mockingbirdbank/service/AccountService.java`, `src/main/java/com/mockingbirdbank/service/TransactionService.java`, `src/main/java/com/mockingbirdbank/service/ProgramService.java` | Private helper in each service that runs a repository supplier through its breaker. |
 
 ## Configuration
 
@@ -41,7 +41,7 @@ The breakers themselves are created and used in `src/main/java/com/mockingbirdba
 | `waitDurationInOpenState` | 10 s | Fail fast "instead of piling up threads/connections against an already-struggling Postgres". |
 | `permittedNumberOfCallsInHalfOpenState` | 3 | Three trial calls decide whether to close again. |
 
-The config is a static method rather than inline in the bean so `CircuitBreakerBehaviorTest`, `AccountServiceTest` and `TransactionServiceTest` build their registries from the exact numbers that ship.
+The config is a static method rather than inline in the bean so `CircuitBreakerBehaviorTest`, `AccountServiceTest`, `TransactionServiceTest` and `ProgramServiceTest` build their registries from the exact numbers that ship.
 
 ## Named breakers
 
@@ -49,8 +49,9 @@ The config is a static method rather than inline in the bean so `CircuitBreakerB
 | --- | --- | --- | --- |
 | `accounts` | `AccountService` constructor | `appUserRepository.findByUsername`, `accountRepository.findByHolderIdOrderByAccountTypeAscIdAsc`, `accountRepository.findById` | "Accounts are temporarily unavailable" |
 | `transactions` | `TransactionService` constructor | `transactionRepository.findByAccountIdOrderByPostedAtDesc` | "Transaction history is temporarily unavailable" |
+| `programs` | `ProgramService` constructor | `participationRepository.findByHolderIdOrderByIdAsc` plus initializing each participation's `accounts` | "Programs are temporarily unavailable" |
 
-Each service calls `circuitBreakerRegistry.circuitBreaker(name)` once, so the two breakers keep independent state. A run of failing transaction queries does not stop the dashboard from loading. The `AccountService` breaker also covers the user lookup in `currentHolder()`, so every dashboard view makes several calls through it: `currentHolder`, `accountsFor`, and `accountsFor` again inside `totalBalance`. See [Services](services.md).
+Each service calls `circuitBreakerRegistry.circuitBreaker(name)` once, so the three breakers keep independent state. A run of failing transaction or program queries does not stop the dashboard's accounts from loading. The `AccountService` breaker also covers the user lookup in `currentHolder()`, so every dashboard view makes several calls through it: `currentHolder`, `accountsFor`, and `accountsFor` again inside `totalBalance`. `requireAccount` makes two: `currentHolder` and `findById`. See [Services](services.md).
 
 ## How it works
 
@@ -68,9 +69,10 @@ private <T> T protectedCall(Supplier<T> repositoryCall) {
 
 Only the repository call goes inside the breaker. Business outcomes are decided outside it:
 
-- `requireAccount` calls `protectedCall(() -> accountRepository.findById(id))` and then `orElseThrow(IllegalArgumentException)`. An empty `Optional` is a successful call, so a run of 404s never trips the breaker.
+- `requireAccount` calls `protectedCall(() -> accountRepository.findById(id))`, then filters by owner and calls `orElseThrow(IllegalArgumentException)`. An empty `Optional` or a foreign account is a successful call, so a run of 404s never trips the breaker.
 - `revealAccountNumber` applies the ownership filter and throws `AccessDeniedException` after `protectedCall` returns, so denied reveals are not breaker failures either.
 - `currentHolder` throws `IllegalStateException` for a user with no holder outside the breaker.
+- `ProgramService` applies the program rules after `protectedCall` returns, so an unmet rule is never a breaker failure.
 
 Any exception the repository itself throws, such as `DataAccessResourceFailureException`, is recorded as a failure and rethrown unchanged. Only a rejected call becomes `ServiceUnavailableException`.
 
@@ -91,18 +93,19 @@ Automatic transition from open to half-open is not enabled, so the breaker moves
 
 ## UI handling of ServiceUnavailableException
 
-Only the account number reveal path catches it.
+The account number reveal path and the program sections catch it. The program sections also catch database errors from the program read. A failure inside `protectedCall`, such as a failing query, counts toward opening the `programs` breaker. A connection that can't be taken from the pool does not: the `@Transactional` proxy around `ProgramService` throws `CannotCreateTransactionException` before `protectedCall` runs.
 
 | Where | What it catches | User sees |
 | --- | --- | --- |
 | `AccountNumberDisplay.onToggle`, `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java:124-134` | `AccessDeniedException` or `ServiceUnavailableException` from `revealAccountNumber` | `showRevealFailed()`: a 4-second notification at top center, "We couldn't show the full account number right now. Please try again." The number stays masked. |
-| `DashboardView.toggleAll`, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:217-236` | `ServiceUnavailableException` from `revealAccountNumbers` | The same notification; no display is changed. |
+| `DashboardView.toggleAll`, `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java:279-298` | `ServiceUnavailableException` from `revealAccountNumbers` | The same notification; no display is changed. |
+| `DashboardView.programEvaluations`, `AccountDetailView.programSection`, both through `ProgramLookup.orUnavailable` (`src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java`) | `ServiceUnavailableException` from `ProgramService` (`programs` breaker open), and `DataAccessException`, `TransactionException` or `PersistenceException` from a database failure (logged at WARN); each is tracked as `programs.unavailable` with the exception's simple name as the reason | "Programs can't be shown right now. Please try again later." in place of the programs; the rest of the page renders normally, and the dashboard adds no unmet-requirements notice. |
 
-Everywhere else the exception propagates. `DashboardView` calls `currentHolder`, `accountsFor` and `totalBalance` in its constructor, and `AccountDetailView.setParameter` catches only `IllegalArgumentException` around `requireAccount` and nothing around `transactionService.forAccount`. With a breaker open, those pages fail through Vaadin's navigation error handling rather than a friendly message. The [dashboard](../features/dashboard.md) and [account detail](../features/account-detail.md) pages describe those views.
+Everywhere else the exception propagates. `DashboardView` calls `currentHolder`, `accountsFor` and `totalBalance` in its constructor, and `AccountDetailView.setParameter` catches only `IllegalArgumentException` around `requireAccount` and nothing around `transactionService.forAccount`. An open `accounts` or `transactions` breaker therefore still breaks those pages. With a breaker open, those pages fail through Vaadin's navigation error handling rather than a friendly message. The [dashboard](../features/dashboard.md) and [account detail](../features/account-detail.md) pages describe those views.
 
 ## Metrics
 
-`ResilienceConfig.circuitBreakerRegistry` calls `TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(registry).bindTo(meterRegistry)`, which publishes Resilience4j's standard meters to the same Micrometer `MeterRegistry` that holds `product.events`, each tagged with `name=accounts` or `name=transactions`:
+`ResilienceConfig.circuitBreakerRegistry` calls `TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(registry).bindTo(meterRegistry)`, which publishes Resilience4j's standard meters to the same Micrometer `MeterRegistry` that holds `product.events`, each tagged with `name=accounts`, `name=transactions` or `name=programs`:
 
 | Meter | Shows |
 | --- | --- |
@@ -123,10 +126,13 @@ Everywhere else the exception propagates. `DashboardView` calls `currentHolder`,
 
 | Test | What it checks |
 | --- | --- |
-| `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | With a mocked repository that always throws `DataAccessResourceFailureException`, the first 10 `requireAccount` calls rethrow it and reach the repository 10 times; the 11th throws `ServiceUnavailableException` and the repository count stays at 10. A second test does the same for `TransactionService.forAccount` and the `transactions` breaker. |
+| `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | With a mocked repository that always throws `DataAccessResourceFailureException`, the first 10 `accountsFor(holder)` calls rethrow it and reach the repository 10 times; the 11th throws `ServiceUnavailableException` and the repository count stays at 10. A second test does the same for `TransactionService.forAccount` and the `transactions` breaker. |
 | `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | `revealAccountNumberFailsFastWhenCircuitBreakerIsOpen` forces `accounts` open with `transitionToOpenState()` and expects `ServiceUnavailableException`. |
+| `src/test/java/com/mockingbirdbank/service/ProgramServiceTest.java` | `evaluationsForFailsFastWhenCircuitBreakerIsOpen` does the same for `programs`. |
+| `src/test/java/com/mockingbirdbank/ui/view/DashboardViewTest.java` | `programsUnavailableStillShowsTheAccounts`: with `ProgramService` throwing `ServiceUnavailableException`, the dashboard shows the "unavailable" message and still renders the account cards. `programsDatabaseErrorBeforeTheBreakerOpensStillShowsTheAccounts` does the same for a `DataAccessResourceFailureException`. |
+| `src/test/java/com/mockingbirdbank/ui/view/ProgramLookupTest.java` | An open breaker and the three database error types give an empty result and a `programs.unavailable` count; an unrelated exception propagates. |
 
-No test covers the half-open state or recovery back to closed. Both run without Spring or Docker; see [Testing](../how-to-contribute/testing.md).
+No test covers the half-open state or recovery back to closed. These tests run without Spring or Docker; see [Testing](../how-to-contribute/testing.md).
 
 ## Entry points for modification
 
@@ -143,7 +149,9 @@ No test covers the half-open state or recovery back to closed. Both run without 
 | `src/main/java/com/mockingbirdbank/resilience/ServiceUnavailableException.java` | Fail-fast exception |
 | `src/main/java/com/mockingbirdbank/service/AccountService.java` | `accounts` breaker and `protectedCall` |
 | `src/main/java/com/mockingbirdbank/service/TransactionService.java` | `transactions` breaker and `protectedCall` |
+| `src/main/java/com/mockingbirdbank/service/ProgramService.java` | `programs` breaker and `protectedCall` |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Program sections' fallback for an open breaker or a database error |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Reveal failure notification |
-| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Reveal-all failure handling |
-| `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | Trip test for both breakers |
+| `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Reveal-all failure handling, programs section fallback |
+| `src/test/java/com/mockingbirdbank/resilience/CircuitBreakerBehaviorTest.java` | Trip test for the `accounts` and `transactions` breakers |
 | `build.gradle` | Resilience4j dependencies and the Spring Boot 4 note |

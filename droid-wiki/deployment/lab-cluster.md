@@ -81,7 +81,7 @@ psql -h 192.168.0.148 -U admin -d postgres -f scripts/bootstrap-lab-db.sql
 
 Connect to an existing database such as `postgres` first; the script runs `CREATE DATABASE mockingbirdbank`, reconnects with `\c mockingbirdbank` and creates the four tables. The `CREATE TABLE` statements are a literal copy of `src/main/resources/db/migration/V1__init_schema.sql`, not a `\i` include, so the file works when only it is available. With a GUI client, run the `CREATE DATABASE`, open a new connection to `mockingbirdbank`, and run the rest.
 
-On first boot against these tables, `spring.flyway.baseline-on-migrate: true` sees a non-empty schema and records a baseline at version 1 instead of running V1. `DataInitializer` then finds no holders and seeds the demo account, so the LAB instance has the `jordan.ellis` login too. See [Persistence](../systems/persistence.md).
+On first boot against these tables, `spring.flyway.baseline-on-migrate: true` sees a non-empty schema and records a baseline at version 1 instead of running V1. Flyway then applies V2, which adds the program tables and columns. `DataInitializer` finds no holders and seeds the two demo holders, so the LAB instance has the `jordan.ellis` and `riley.chen` logins too. See [Persistence](../systems/persistence.md).
 
 ### Why a dedicated database
 

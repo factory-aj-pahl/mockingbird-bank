@@ -60,10 +60,16 @@ public class AccountService {
                 () -> accountRepository.findByHolderIdOrderByAccountTypeAscIdAsc(holder.getId()));
     }
 
+    /**
+     * One of the signed-in holder's own accounts. An account that doesn't exist and one owned by
+     * someone else fail the same way, so the account page can neither show another customer's
+     * account nor be used to probe which account IDs exist.
+     */
     public Account requireAccount(Long accountId) {
+        AccountHolder holder = currentHolder();
         Optional<Account> account = protectedCall(() -> accountRepository.findById(accountId));
-        return account.orElseThrow(
-                () -> new IllegalArgumentException("No such account: " + accountId));
+        return account.filter(candidate -> isOwnedBy(candidate, holder))
+                .orElseThrow(() -> new IllegalArgumentException("No such account: " + accountId));
     }
 
     /**
@@ -104,7 +110,7 @@ public class AccountService {
         return numbers;
     }
 
-    private static boolean isOwnedBy(Account account, AccountHolder holder) {
+    static boolean isOwnedBy(Account account, AccountHolder holder) {
         return account.getHolder() != null
                 && holder.getId() != null
                 && Objects.equals(account.getHolder().getId(), holder.getId());

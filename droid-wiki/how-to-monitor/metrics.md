@@ -30,17 +30,17 @@ One counter, incremented by every `AnalyticsEventService.track` and `trackError`
 
 | Tag | Values |
 | --- | --- |
-| `event` | `dashboard.viewed`, `account.viewed`, `account_number.revealed`, `user.login`, `ui.unhandled_exception` |
+| `event` | `dashboard.viewed`, `account.viewed`, `account_number.revealed`, `user.login`, `programs.unavailable`, `ui.unhandled_exception` |
 | `outcome` | `success` or `error` |
 | `reason` | `n/a` for successes; for errors `not_found`, `forbidden`, or an exception's simple class name (for example `BadCredentialsException`) |
 
 Attributes such as `accountId` and `username` are not tags; they only go to the log line, so the number of series stays small. Which call site emits which combination is in the [event catalog](../systems/analytics.md#event-catalog).
 
-`ui.unhandled_exception` and `user.login` failures use exception class names as the reason, so the reason set grows with every new exception type that reaches those paths.
+`ui.unhandled_exception`, `programs.unavailable` and `user.login` failures use exception class names as the reason, so the reason set grows with every new exception type that reaches those paths.
 
 ### resilience4j.circuitbreaker.*
 
-`src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java` binds the circuit breaker registry with `TaggedCircuitBreakerMetrics`. Every meter is tagged `name=accounts` or `name=transactions`.
+`src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java` binds the circuit breaker registry with `TaggedCircuitBreakerMetrics`. Every meter is tagged `name=accounts`, `name=transactions` or `name=programs`.
 
 | Meter | Use it for |
 | --- | --- |

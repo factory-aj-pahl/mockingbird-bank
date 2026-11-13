@@ -18,7 +18,7 @@ Fields holding non-serializable Spring objects in Vaadin components are `transie
 - Lombok `@Getter`, `@Setter` and `@NoArgsConstructor` on every entity, plus one explicit constructor with the required fields. No hand-written accessors.
 - Display logic that depends only on the entity lives on it: `Account.getMaskedNumber()`, `Account.getDisplayName()`, `Transaction.isCredit()`.
 - Any `@OneToMany` that may be iterated across several parents gets `@BatchSize` (see `Account.transactions`). `AccountTransactionQueryPerformanceTest` guards against N+1 queries.
-- Schema changes go in a new Flyway migration (`V2__...`). Never edit a migration that may have run somewhere.
+- Schema changes go in a new Flyway migration (the next is `V3__...`). Never edit a migration that may have run somewhere.
 
 ## Services
 
@@ -29,7 +29,7 @@ Fields holding non-serializable Spring objects in Vaadin components are `transie
 ## Error handling and signals
 
 - User-facing failures are tracked, not just logged: `analytics.trackError(event, reason, attributes)` with a short, low-cardinality `reason` (`not_found`, `forbidden`, an exception simple name).
-- Views catch only what they can turn into a better UX. `AccountDetailView` converts a missing account into `NotFoundException`. `AccountNumberDisplay` shows a notification when a reveal fails. Everything else falls through to `GlobalErrorHandler`, which tracks `ui.unhandled_exception` and then delegates to Vaadin's `DefaultErrorHandler`.
+- Views catch only what they can turn into a better UX. `AccountDetailView` converts a missing account into `NotFoundException`. `AccountNumberDisplay` shows a notification when a reveal fails. The program sections show an inline "unavailable" message through `ProgramLookup` and track it as `programs.unavailable`. Everything else falls through to `GlobalErrorHandler`, which tracks `ui.unhandled_exception` and then delegates to Vaadin's `DefaultErrorHandler`.
 - Never log secrets or full account numbers. `ScrubbingMessageConverter` is a safety net, not permission.
 
 See [Analytics](../systems/analytics.md) and [Resilience](../systems/resilience.md).

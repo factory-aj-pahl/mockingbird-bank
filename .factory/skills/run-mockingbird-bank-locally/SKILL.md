@@ -68,12 +68,16 @@ SPRING_DATASOURCE_PASSWORD=<password> \
 
 ## 4. Log in and drive the UI
 
-On an empty database, `DataInitializer` seeds one account holder with three accounts and
-sample transactions so there's real data to look at.
+On an empty database, `DataInitializer` seeds two account holders with sample accounts and
+transactions so there's real data to look at: `jordan.ellis` (three accounts, two of them in a
+Regular program) and `riley.chen` (a customer under 18 with one savings account in a Youth
+Savings program). Both logins use the same password. The program sections only show when the
+app starts with `MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_PROGRAMS=true`.
 
 1. Open `http://localhost:8080` - you land on `LoginView`.
-2. Sign in with username `jordan.ellis`, password `mockingbird` (override the seeded password
-   via the `MOCKINGBIRD_DEV_PASSWORD` env var before first startup if you need a different one).
+2. Sign in with username `jordan.ellis` (or `riley.chen`), password `mockingbird` (override the
+   seeded password via the `MOCKINGBIRD_DEV_PASSWORD` env var before first startup if you need a
+   different one).
 3. You're redirected to the dashboard (`DashboardView`, routes `/` and `/accounts`): total
    balance banner plus one card per account.
 4. Click any account card to open `AccountDetailView` (`/accounts/{id}`) and see that

@@ -6,7 +6,7 @@ The UI is plain Vaadin Flow: Java classes that build components on the server, w
 
 ## Purpose
 
-Show the signed-in holder their accounts and transaction history, in a layout and palette that follow the Mockingbird Bank design mockup referenced in the class Javadocs. The UI never writes data. The only server calls beyond page rendering are the account number reveal clicks.
+Show the signed-in holder their accounts, transaction history and (behind a flag) programs, in a layout and palette that follow the Mockingbird Bank design mockup referenced in the class Javadocs. The UI never writes data. The only server calls beyond page rendering are the account number reveal clicks.
 
 ## Directory layout
 
@@ -22,6 +22,8 @@ src/main/java/com/mockingbirdbank/
     AccountDetailView.java    /accounts/{id}
     AccountCard.java          one clickable account tile
     AccountNumberDisplay.java masked number with an eye toggle
+    ProgramCard.java          one program, its accounts and unmet rules
+    ProgramLookup.java        program read fallback for the views
 src/main/frontend/themes/mockingbird/
   styles.css                  --mb-* CSS variables, light and dark
   theme.json                  Lumo imports
@@ -35,10 +37,12 @@ src/main/frontend/themes/mockingbird/
 | `MainLayout` | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | `AppLayout` with the navy top bar: logo, wordmark, optional build version, greeting, dark mode toggle, sign out. |
 | `BirdMark` | `src/main/java/com/mockingbirdbank/ui/layout/BirdMark.java` | An `Html` component holding a 30x30 inline SVG bird, so the logo needs no image asset and stays sharp at any size. |
 | `LoginView` | `src/main/java/com/mockingbirdbank/ui/view/LoginView.java` | `LoginOverlay` posting to `login`; shows the error state when the URL has an `error` query parameter. |
-| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Total assets hero, account cards, optional welcome banner and account count line, "Show/Hide account numbers" toolbar. |
-| `AccountDetailView` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Header and a `Grid` of transactions for one account. |
+| `DashboardView` | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Total assets hero, account cards, optional welcome banner, account count line, programs section and unmet-requirements notice, "Show/Hide account numbers" toolbar. |
+| `AccountDetailView` | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Header, optional "Program" section, and a `Grid` of transactions for one of the signed-in holder's accounts. |
 | `AccountCard` | `src/main/java/com/mockingbirdbank/ui/view/AccountCard.java` | An `Anchor` to `accounts/{id}` wrapping name, type tag, number line and balance. |
 | `AccountNumberDisplay` | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Masked number plus eye button; see [Account number reveal](../features/account-number-reveal.md). |
+| `ProgramCard` | `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | A `Div` showing one `ProgramEvaluation`: name, met or not-met pill, account links, unmet rules. Also builds the dashboard notice and the muted one-line messages. See [Account programs](../features/account-programs.md). |
+| `ProgramLookup` | `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Runs the dashboard's and account page's program lookup; an open `programs` breaker or a database error gives an empty result, which the view shows as the "unavailable" message, and is tracked as `programs.unavailable`. |
 
 ## Routes
 
@@ -47,7 +51,7 @@ src/main/frontend/themes/mockingbird/
 | `/login` | `LoginView` | none | `@AnonymousAllowed` | Registered with Spring Security via `configurer.loginView(LoginView.class)` in `src/main/java/com/mockingbirdbank/security/SecurityConfig.java`. |
 | `/` | `DashboardView` | `MainLayout` | `@PermitAll` | `@RouteAlias("")` |
 | `/accounts` | `DashboardView` | `MainLayout` | `@PermitAll` | `@Route("accounts")` |
-| `/accounts/{id}` | `AccountDetailView` | `MainLayout` | `@PermitAll` | Same `@Route("accounts")` plus `HasUrlParameter<Long>`; an unknown ID throws `NotFoundException`. |
+| `/accounts/{id}` | `AccountDetailView` | `MainLayout` | `@PermitAll` | Same `@Route("accounts")` plus `HasUrlParameter<String>`, parsed into an account ID in the view; an unknown or non-numeric ID, or another holder's account, throws `NotFoundException`. |
 
 `@PermitAll` here means "any authenticated user". Vaadin's navigation access control checks these annotations before a view is created, and unauthenticated requests are sent to `LoginView`. The HTTP-level rules for Actuator are separate; see [Security](../security.md) and [API](../api.md).
 
@@ -67,6 +71,10 @@ graph TD
     Dash --> Card[AccountCard]
     Card --> Num[AccountNumberDisplay]
     Detail --> Num
+    Dash --> PC[ProgramCard]
+    Detail --> PC
+    Dash --> PS[ProgramService]
+    Detail --> PS
     Main --> AS[AccountService]
     Dash --> AS
     Detail --> TS[TransactionService]
@@ -84,6 +92,7 @@ Each view reads feature flags through `FeatureFlagService`:
 | `showAccountCount()` | `DashboardView` | Adds a muted "You have N accounts" line under the "Your accounts" heading. |
 | `showAccountNumberOnDashboard()` | `DashboardView` | Passes `null` instead of a number line to `AccountCard`, which then omits it. |
 | `allowAccountNumberReveal()` | `DashboardView`, `AccountDetailView` | Uses `AccountNumberDisplay` instead of a plain masked `Span`. |
+| `showAccountPrograms()` | `DashboardView`, `AccountDetailView` | Adds the "Your programs" section and notice on the dashboard and the "Program" section on account pages. When off, `ProgramService` is not called. |
 
 Details are in [Feature flags](../features/feature-flags.md).
 
@@ -129,7 +138,7 @@ Sign out calls `AuthenticationContext.logout()`, which invalidates the session t
 
 ## Testing and coverage
 
-The only unit test under `src/test/java/com/mockingbirdbank/ui/` is `view/DashboardViewTest.java`. It builds `DashboardView` directly with a mocked `AccountService` (no running Vaadin UI is needed to construct these components) and checks the `showAccountCount` line. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching. Plain construction tests like `DashboardViewTest` can check which components a view adds, but anything that depends on the browser (client callbacks, navigation, timers) still needs a browser fixture. The UI still counts toward the 30% project-wide floor.
+The unit tests under `src/test/java/com/mockingbirdbank/ui/` are `view/AccountDetailViewTest.java`, `view/DashboardViewTest.java`, `view/ProgramCardTest.java` and `view/ProgramLookupTest.java`. `AccountDetailViewTest` checks which paths route to `AccountDetailView` through a route registry, and calls `setParameter` directly for numeric, non-numeric, unknown and own account IDs. `DashboardViewTest` builds `DashboardView` directly with a mocked `AccountService` and `ProgramService` (no running Vaadin UI is needed to construct these components) and checks the `showAccountCount` line and the `showAccountPrograms` branches. `ProgramCardTest` checks a card's account links, status and unmet rules, and `ProgramLookupTest` checks which exceptions turn into the "unavailable" result and the `programs.unavailable` event. The `jacocoTestCoverageVerification` block in `build.gradle` applies its 90% per-class rule only to `model`, `service`, `security`, `config`, `analytics`, `resilience` and `observability`. The comment above it explains why: the views are declarative layout code without much branching. Plain construction tests like these can check which components a view adds, but anything that depends on the browser (client callbacks, navigation, timers) still needs a browser fixture. The UI still counts toward the 30% project-wide floor.
 
 The UI is exercised instead by:
 
@@ -152,9 +161,11 @@ See [Testing](../how-to-contribute/testing.md).
 | `src/main/java/com/mockingbirdbank/Application.java` | Theme registration |
 | `src/main/java/com/mockingbirdbank/ui/layout/MainLayout.java` | Top bar, `@PermitAll` reasoning, dark mode JS |
 | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Main page and reveal-all toolbar |
-| `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | URL parameter handling and not-found path |
+| `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | URL parameter handling, not-found path and program section |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramCard.java` | Program card, notice and messages |
+| `src/main/java/com/mockingbirdbank/ui/view/ProgramLookup.java` | Program read fallback |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountNumberDisplay.java` | Client callback, auto-hide timer, click handling inside an anchor |
 | `src/main/frontend/themes/mockingbird/styles.css` | Palette for both modes |
 | `src/main/java/com/mockingbirdbank/security/SecurityConfig.java` | Where `LoginView` is wired into Spring Security |
 
-Related feature pages: [Dashboard](../features/dashboard.md), [Account detail](../features/account-detail.md), [Sign-in](../features/sign-in.md).
+Related feature pages: [Dashboard](../features/dashboard.md), [Account detail](../features/account-detail.md), [Account programs](../features/account-programs.md), [Sign-in](../features/sign-in.md).

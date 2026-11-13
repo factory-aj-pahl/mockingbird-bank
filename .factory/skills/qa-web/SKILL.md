@@ -3,16 +3,17 @@ name: qa-web
 description: >
   QA tests for the Mockingbird Bank web app (Spring Boot 4 + Vaadin 25, one process).
   Drives the UI through droid-control (sign-in, dashboard, account detail, account-number
-  reveal, build version, dark mode, sign-out, cross-account isolation, feature-flag variants)
-  and checks the Actuator endpoints with curl.
+  reveal, build version, dark mode, sign-out, cross-account isolation, account programs,
+  feature-flag variants) and checks the Actuator endpoints with curl.
 ---
 
 # QA: Mockingbird Bank web app
 
 A read-only account dashboard. One Spring Boot process serves the Vaadin UI (server-side Flow
 components, client-side routing) and the Actuator endpoints. Data comes from PostgreSQL;
-`DataInitializer` seeds one holder (Jordan Ellis), three accounts and eight transactions per
-account on an empty database.
+`DataInitializer` seeds two holders on an empty database: Jordan Ellis (three accounts with eight
+transactions each, two of them in a Regular program) and Riley Chen (a customer under 18 with one
+savings account in a Youth Savings program).
 
 Read `.factory/skills/qa/config.yaml` first: it defines the targets, the personas, how to reach
 each target's database, and the `video_evidence` / `droid_control.compose` toggles.
@@ -76,6 +77,8 @@ Never use `lab` for branch QA (see its restrictions in config.yaml).
   - `local`: the AGENTS.md default, unless `dev-up.sh` was started with the variable set (a
     `dev-up.sh` you start inherits your environment) when the database was first seeded. Never print the password in the
   report, logs or evidence.
+- `youth_holder` persona: username `riley.chen`, with the same password as `holder` (both logins
+  are seeded with it).
 - No other secrets are needed for the app. `FACTORY_API_KEY` is only for the `droid` CLI.
 - Sessions live in server memory: any app restart, pod rollout or flag change signs you out.
   Sign in again afterwards.
@@ -98,6 +101,21 @@ first), including "Trader Joe's" (-$86.42), "Direct Deposit - Bespin Engineering
 "Green Valley Utilities", "Transfer to Savings", "Blue Bottle Coffee", "Rent - Meridian
 Apartments" and "Amazon". Opened dates: 2021-03-12, 2022-01-05, 2023-06-20.
 
+Programs (visible only with `showAccountPrograms` on, see W15): Everyday Checking and
+High-Yield Savings form Jordan's one **Regular** program (requirements met). Vacation Savings is
+in no program.
+
+`youth_holder` (Riley Chen, born 15 years before the seed date in America/New_York):
+
+| Account | Type tag | Masked | Full number | Balance |
+| --- | --- | --- | --- | --- |
+| Youth Savings | Savings | `•••• 5317` | `2000000005317` | $245.50 |
+
+Total assets **$245.50**, primary account `•••• 5317`, opened 2024-09-03. Four transactions
+(newest first): "Birthday gift" ($50.00), "Weekly allowance" ($20.00), "Corner Bookstore"
+(-$12.99), "Weekly allowance" ($20.00). The account forms Riley's one **Youth Savings** program
+(requirements met).
+
 Account IDs are database identities - never hard-code them. Read them from the dashboard card
 links (`accounts/<id>`).
 
@@ -110,11 +128,12 @@ diff could have caused.
 | Changed path | Run flows |
 | --- | --- |
 | `ui/view/LoginView.java`, `security/**`, `analytics/AuthenticationEventListener.java` | W1, W2, W3, W9, W12 |
-| `ui/view/DashboardView.java`, `ui/view/AccountCard.java` | W4, W6, W5 (adjacent) |
-| `ui/view/AccountDetailView.java`, `service/TransactionService.java` | W5, W10, W11 |
+| `ui/view/DashboardView.java`, `ui/view/AccountCard.java` | W4, W6, W15, W5 (adjacent) |
+| `ui/view/AccountDetailView.java`, `service/TransactionService.java` | W5, W10, W11, W15 |
 | `ui/view/AccountNumberDisplay.java`, `AccountService.reveal*` | W6, W11 |
-| `service/AccountService.java`, `model/**`, `repository/**`, `db/migration/**` | W4, W5, W10, W11 |
-| `config/DataInitializer.java` | W2, W4, W5 |
+| `service/AccountService.java`, `model/**`, `repository/**`, `db/migration/**` | W4, W5, W10, W11, W15 |
+| `config/DataInitializer.java` | W2, W4, W5, W15 |
+| `service/Program*.java`, `ui/view/ProgramCard.java`, `ui/view/ProgramLookup.java`, `model/Program*.java`, `config/BusinessClockConfig.java` | W15, W13 |
 | `ui/layout/MainLayout.java`, `ui/layout/BirdMark.java` | W7, W8, W9, W4 (adjacent) |
 | `src/main/frontend/**` (theme CSS) | W4, W5, W8 (screenshots matter here) |
 | `observability/**`, `build.gradle` build-info/git config, `gradle.properties` | W7, W12 |
@@ -228,8 +247,8 @@ Pick only the flows the diff calls for. Each lists persona, steps and pass crite
 3. Open `/accounts/<OTHER_ACCOUNT_ID>` directly.
    PASS: the same not-found result as W10 (so account IDs can't be probed).
    FAIL (high severity, list it under Action Required): the page renders "QA Other Checking",
-   "$777.77" or the transaction "QA-OTHER-HOLDER-MARKER". `AccountService.requireAccount` looks
-   accounts up by ID without an ownership check, so watch this flow closely.
+   "$777.77" or the transaction "QA-OTHER-HOLDER-MARKER". `AccountService.requireAccount` only
+   returns accounts the signed-in holder owns, so a render here means that check regressed.
 4. If the page did render, click its header eye button as a second row: PASS when the
    notification "We couldn't show the full account number right now. Please try again." appears
    and `9000000000017` never shows (`revealAccountNumber` checks ownership).
@@ -246,7 +265,7 @@ Pick only the flows the diff calls for. Each lists persona, steps and pass crite
    `/login`; 401/403 are also fine).
 4. `curl -si -H 'X-Correlation-Id: qa-<RUN_ID>' <base>/actuator/health`. PASS: the response
    echoes `X-Correlation-Id: qa-<RUN_ID>`; without the header, a generated ID comes back.
-5. Signed in, open `/actuator/featureflags` in the browser. PASS: JSON with the five flags and
+5. Signed in, open `/actuator/featureflags` in the browser. PASS: JSON with the six flags and
    the values expected for this target: the `mockingbird.feature-flags` defaults in
    `src/main/resources/application.yml` (as of the code under test), plus any override this run
    applied.
@@ -283,6 +302,7 @@ Confirm each override took effect via `/actuator/featureflags` before checking t
 | `ALLOW_ACCOUNT_NUMBER_REVEAL` | `false` | Masked numbers are plain text: no eye buttons on cards, hero or detail header, and no "Show account numbers" toolbar |
 | `SHOW_BUILD_VERSION` | `false` | No `#build-version` under the wordmark; `/actuator/info` still works |
 | `SHOW_ACCOUNT_COUNT` | `true` | "You have 3 accounts" (`.account-count-summary`) directly under the "Your accounts" heading for the seeded holder; with the default (`false`) the line is absent |
+| `SHOW_ACCOUNT_PROGRAMS` | `true` | "Your programs" below "Your accounts" and a "Program" section on account pages (run W15); with the default (`false`) neither appears and the dashboard shows no program notice |
 
 Always restore the defaults and re-check `/actuator/featureflags` before finishing.
 
@@ -311,6 +331,41 @@ mockingbird-bank-dev port-forward deployment/mockingbird-app 8080:8080` against
    `docker compose start postgres`), wait ~10s for the breaker's half-open trial, reload. PASS:
    the dashboard recovers without restarting the app.
 
+### W15. Account programs (holder + youth_holder, negative included)
+
+Needs `SHOW_ACCOUNT_PROGRAMS=true` (restart steps in W13; confirm it via
+`/actuator/featureflags`). Expected values are the seed's; on a persistent database check Known
+Failure Mode 11 first. Then, before step 1, record Vacation Savings' program link with SQL
+(`<db_access command>`) so step 4 can put it back:
+`SELECT coalesce(program_participation_id::text, 'NULL') FROM account WHERE account_number =
+'2000000000092';`
+The seed prints `NULL`; for any other value, see Known Failure Mode 5 before judging step 1.
+
+1. Sign in as holder. PASS: a "Your programs" section sits below "Your accounts" with one card
+   (`.program-card[data-program="REGULAR"]`) named "Regular", status "Requirements met", and
+   links "Everyday Checking · Checking" and "High-Yield Savings · Savings" (Vacation Savings is
+   not listed). There is no "Unmet requirements" box and no `.program-notice` on the page.
+2. Click "High-Yield Savings · Savings". PASS: its account page has a "Program" section
+   (`.account-program`) with the same Regular card. Back on the dashboard, open Vacation
+   Savings. PASS: its "Program" section reads "This account isn't part of a program."
+3. Unmet rule: link Vacation Savings into High-Yield Savings' program with SQL:
+   `UPDATE account SET program_participation_id = (SELECT program_participation_id FROM account
+   WHERE account_number = '2000000007743') WHERE account_number = '2000000000092';`
+   Reload the dashboard. PASS: the Regular card shows "Requirements not met", lists Vacation
+   Savings too, and its "Unmet requirements" box reads "Regular needs exactly one savings
+   account, but 2 are linked."; the `.program-notice` ("Some of your program requirements aren't
+   met. ...") shows near the top of the page; total assets and the three account cards are
+   unchanged.
+4. If step 3 ran, restore Vacation Savings' value recorded before step 1, even after a failure:
+   `UPDATE account SET program_participation_id = <recorded value> WHERE account_number =
+   '2000000000092';` (`<recorded value>` is `NULL` on the seed). Reload. PASS: back to the
+   state in step 1.
+5. Sign out and sign in as youth_holder. PASS: "Welcome back, Riley Chen", one Youth Savings
+   account card ($245.50) and one "Youth Savings" program card with "Requirements met" that
+   links "Youth Savings · Savings". Nothing of Jordan's (names, balances, programs) appears.
+6. As youth_holder, open the URL of one of Jordan's accounts (from the links in step 1). PASS:
+   the W10 not-found result.
+
 ## Error handling
 
 - Health never reaches `UP`: collect the last 80 lines of the app log (`tail -n 80 "$QA_APP_LOG"` on ci,
@@ -338,7 +393,17 @@ mockingbird-bank-dev port-forward deployment/mockingbird-app 8080:8080` against
    run the cleanup SQL and restart the app, or ask the user before `k3d-deploy.sh down --purge-db`.
 5. **Persistent databases.** k3d (PVC) and local (compose volume) keep data between runs. A
    previous run that crashed before cleanup leaves "QA Other Checking" behind; the seed SQL is
-   idempotent and the cleanup SQL is safe to re-run.
+   idempotent and the cleanup SQL is safe to re-run. A run interrupted between W15 steps 3 and 4
+   leaves Vacation Savings linked into Jordan's Regular program, and because step 4 puts back the
+   recorded value, later runs keep that link. On k3d or local, a value other than `NULL`
+   recorded before W15 step 1 can be that leftover link or one the code under test wrote, and
+   the run cannot tell which. Report W15 steps 1 to 4 BLOCKED with the recorded value as the
+   reason rather than FAIL, and say that the `ci` run, which starts from a new database, judges
+   them. Don't suggest a database reset or purge for it, and don't suggest clearing the link by
+   hand: that doesn't reseed, so a later PASS wouldn't show that the code under test leaves
+   Vacation Savings unlinked. Still sign in as holder and note Jordan's account links from the
+   dashboard, then run steps 5 and 6 as usual. On `ci` the database is new every run, so judge
+   the steps as written there: Vacation Savings listed under Regular is then a FAIL.
 6. **Eye button inside a link.** Account cards are `<a>` elements. Click the eye button itself;
    clicking elsewhere on the card navigates to the detail page.
 7. **Auto re-mask.** Revealed numbers re-mask after 30 seconds. Assert the revealed number
@@ -348,3 +413,8 @@ mockingbird-bank-dev port-forward deployment/mockingbird-app 8080:8080` against
 9. **Sessions are in memory.** Every restart, rollout or flag change signs you out.
 10. **Bullet characters.** Masked numbers use `•` (U+2022), e.g. `•••• 4821`. Match on the last
     four digits if a text search for the bullets misbehaves.
+11. **Seed from an older build.** DataInitializer never reseeds a database that already has
+    holders. A k3d or local database first seeded before programs existed has no `riley.chen`
+    login, no programs and no dates of birth. Report the affected W15 steps BLOCKED with that
+    reason rather than FAIL, and suggest no database reset or purge for it (the `ci` run judges
+    them on a new database).

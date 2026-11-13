@@ -4,7 +4,7 @@ A few things about this repository that are more interesting than they first loo
 
 ## Jordan Ellis works at Bespin Engineering
 
-The seeded demo account holder gets a $3,200.00 "Direct Deposit - Bespin Engineering" 1 and 14 days ago (`src/main/java/com/mockingbirdbank/config/DataInitializer.java:119-125`). The same eight sample rows are seeded into all three accounts, so the paycheck also shows up in both savings accounts. Bespin is presumably a nod to the gas giant with Cloud City in *The Empire Strikes Back*. The line has been there since the first commit on 2026-09-26, and the Playwright suite asserts on it (`qa/tests/dashboard.spec.ts:30`), so renaming the employer would break interactive QA. See [persistence](systems/persistence.md) for the rest of the seed data.
+The seeded adult demo holder, Jordan Ellis, gets a $3,200.00 "Direct Deposit - Bespin Engineering" 1 and 14 days ago (`src/main/java/com/mockingbirdbank/config/DataInitializer.java:52-61`). The same eight sample rows are seeded into all three of Jordan's accounts, so the paycheck also shows up in both savings accounts. Riley Chen, the youth customer, gets an allowance instead. Bespin is presumably a nod to the gas giant with Cloud City in *The Empire Strikes Back*. The line has been there since the first commit on 2026-09-26, and the Playwright suite asserts on it (`qa/tests/dashboard.spec.ts:30`), so renaming the employer would break interactive QA. See [persistence](systems/persistence.md) for the rest of the seed data.
 
 ## The logo is SVG in a Java string
 

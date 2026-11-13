@@ -1,12 +1,13 @@
 # Mockingbird Bank overview
 
-Mockingbird Bank is a read-only account dashboard. A signed-in account holder sees their accounts and balances, then opens any account to read its transaction history. It is a single Spring Boot 4 process with a Vaadin 25 UI and one PostgreSQL database. There is no public registration: the app seeds one demo holder on first run.
+Mockingbird Bank is a read-only account dashboard. A signed-in account holder sees their accounts and balances, then opens any of those accounts to read its transaction history. It is a single Spring Boot 4 process with a Vaadin 25 UI and one PostgreSQL database. There is no public registration: the app seeds two demo holders on first run.
 
 ## What it does
 
 - **Sign in** with a username and password (Spring Security form login through a Vaadin `LoginOverlay`). See [Sign-in](../features/sign-in.md).
 - **Dashboard** at `/` and `/accounts`: total assets across all accounts, then one card per account. See [Dashboard](../features/dashboard.md).
-- **Account detail** at `/accounts/{id}`: the account header, current balance, and a grid of transactions, newest first. See [Account detail](../features/account-detail.md).
+- **Account detail** at `/accounts/{id}`, for the signed-in holder's own accounts only: the account header, current balance, and a grid of transactions, newest first. See [Account detail](../features/account-detail.md).
+- **Account programs** (behind the `showAccountPrograms` flag, off by default): the holder's Regular and Youth Savings programs, whether each meets its rules, and a message for every unmet rule. See [Account programs](../features/account-programs.md).
 - **Reveal full account numbers** on request with an eye button, re-masked after 30 seconds. See [Account number reveal](../features/account-number-reveal.md).
 - **Dark mode** toggle in the top bar, remembered in the browser's `localStorage`. See [UI](../systems/ui.md).
 
@@ -23,7 +24,7 @@ The repository is a solo-maintained demo project (owner `ajpahl1008` in `.github
 | Language | Java 21 (Gradle toolchain) | `build.gradle` |
 | Backend | Spring Boot 4.1.1, Spring Data JPA, Spring Security | `src/main/java/com/mockingbirdbank/` |
 | UI | Vaadin 25.3.0 Flow (server-side Java views) | `src/main/java/com/mockingbirdbank/ui/` |
-| Database | PostgreSQL 16, schema owned by Flyway | `src/main/resources/db/migration/V1__init_schema.sql` |
+| Database | PostgreSQL 16, schema owned by Flyway | `src/main/resources/db/migration/` (`V1__init_schema.sql`, `V2__account_programs.sql`) |
 | Resilience | Resilience4j circuit breakers | `src/main/java/com/mockingbirdbank/resilience/ResilienceConfig.java` |
 | Observability | Micrometer, OpenTelemetry (OTLP), JDK Flight Recorder | `src/main/java/com/mockingbirdbank/observability/` |
 | Build | Gradle wrapper with Spotless, Checkstyle, PMD, CPD, JaCoCo | `build.gradle`, `config/` |

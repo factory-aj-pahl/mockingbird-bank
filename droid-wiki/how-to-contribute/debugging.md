@@ -25,9 +25,10 @@ Useful events when debugging:
 | Event | Meaning |
 | --- | --- |
 | `user.login` with `outcome=error` | Failed sign-in, `reason` is the Spring Security exception simple name |
-| `account.viewed` with `reason=not_found` | `/accounts/{id}` for an ID that does not exist |
+| `account.viewed` with `reason=not_found` | `/accounts/{id}` for an ID that does not exist, belongs to another holder, or is not a number that fits a `long` (then with no `accountId` attribute) |
 | `account_number.revealed` with `reason=forbidden` | Reveal attempted for an account the user does not own |
 | `ui.unhandled_exception` | Any exception that escaped a view, `reason` is the exception type |
+| `programs.unavailable` | A program section showed "Programs can't be shown right now"; `reason` is `ServiceUnavailableException` for an open `programs` breaker, otherwise the database exception type, which `ProgramLookup` also logs at WARN |
 
 See [Analytics](../systems/analytics.md) and [Logging](../how-to-monitor/logging.md).
 
@@ -81,7 +82,7 @@ Every HTTP request becomes an OpenTelemetry span exported to `http://localhost:4
 | --- | --- | --- |
 | `Connection to localhost:5432 refused` on `bootRun` | No Postgres running | `docker compose up -d`, or use `./scripts/dev-up.sh`. For another database set `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` |
 | `Schema validation: missing table [...]` at startup | `spring.flyway.baseline-on-migrate: true` marked V1 as applied on a non-empty database that already had other tables, so the app tables were never created. This happened on the first LAB database | Use a database dedicated to the app (see `scripts/bootstrap-lab-db.sql`), or drop the local volume with `docker compose down -v`. Check `flyway_schema_history` |
-| `FlywayException: Validate failed`, checksum mismatch | An already-applied migration in `src/main/resources/db/migration/` was edited | Never edit an applied migration; add `V2__...`. On a throwaway database, `docker compose down -v` |
+| `FlywayException: Validate failed`, checksum mismatch | An already-applied migration in `src/main/resources/db/migration/` was edited | Never edit an applied migration; add the next version (`V3__...`). On a throwaway database, `docker compose down -v` |
 | Demo login fails on an existing database | `DataInitializer` seeds only an empty database, so a changed `MOCKINGBIRD_DEV_PASSWORD` has no effect later | `docker compose down -v` and restart |
 | A new view returns 403 or redirects to login although signed in | The view, or its parent layout, lacks an access annotation. Vaadin treats an unannotated layout as `@DenyAll` | Annotate the view (`@PermitAll`) and use `MainLayout`, which carries `@PermitAll` for this reason. See [UI](../systems/ui.md) |
 | `ApplicationSmokeTest` 403 after login | Expected under MockMvc, Vaadin's servlet initializes lazily | Leave it; see [Testing](testing.md#the-login-smoke-test-stops-early-on-purpose) |

@@ -17,6 +17,7 @@ class FeatureFlagsEndpointTest {
                 .containsEntry("showAccountNumberOnDashboard", true)
                 .containsEntry("showWelcomeBanner", true)
                 .containsEntry("showBuildVersion", true)
-                .containsEntry("showAccountCount", false);
+                .containsEntry("showAccountCount", false)
+                .containsEntry("showAccountPrograms", false);
     }
 }

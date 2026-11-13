@@ -105,6 +105,7 @@ class AccountServiceTest {
 
     @Test
     void requireAccountThrowsForUnknownId() {
+        signedInHolder(1L);
         when(accountRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> accountService.requireAccount(99L))
@@ -112,18 +113,25 @@ class AccountServiceTest {
     }
 
     @Test
-    void requireAccountReturnsMatchFromRepository() {
-        Account account =
-                new Account(
-                        new AccountHolder("Jordan Ellis", "jordan.ellis@example.com"),
-                        "1",
-                        AccountType.CHECKING,
-                        "Checking",
-                        BigDecimal.ZERO,
-                        LocalDate.now());
+    void requireAccountReturnsSignedInHoldersOwnAccount() {
+        AccountHolder holder = signedInHolder(1L);
+        Account account = accountOwnedBy(holder, 7L, "1000000004821");
         when(accountRepository.findById(7L)).thenReturn(Optional.of(account));
 
         assertThat(accountService.requireAccount(7L)).isSameAs(account);
+    }
+
+    @Test
+    void requireAccountRejectsAccountOwnedBySomeoneElseLikeAnUnknownOne() {
+        signedInHolder(1L);
+        AccountHolder stranger = new AccountHolder("Someone Else", "someone@example.com");
+        stranger.setId(2L);
+        when(accountRepository.findById(8L))
+                .thenReturn(Optional.of(accountOwnedBy(stranger, 8L, "9999999999999")));
+
+        assertThatThrownBy(() -> accountService.requireAccount(8L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No such account: 8");
     }
 
     private AccountHolder signedInHolder(long holderId) {

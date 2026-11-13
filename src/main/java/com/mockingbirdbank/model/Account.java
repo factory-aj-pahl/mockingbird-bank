@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -27,6 +28,9 @@ import org.hibernate.annotations.BatchSize;
 @Setter
 @NoArgsConstructor
 public class Account {
+
+    /** ISO 4217 code for US dollars, the currency of every account created before currencies. */
+    public static final String USD = "USD";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,8 +56,17 @@ public class Account {
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal balance;
 
+    /** ISO 4217 code of the currency {@code balance} is held in. */
+    @Column(nullable = false, length = 3)
+    private String currency = USD;
+
     @Column(nullable = false)
     private LocalDate openedAt;
+
+    /** The one program this account takes part in, or {@code null} for none. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "program_participation_id")
+    private ProgramParticipation programParticipation;
 
     // Without this, iterating several accounts and touching each one's lazy
     // transactions collection issues one SELECT per account (classic N+1).

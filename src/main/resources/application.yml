@@ -99,3 +99,4 @@ mockingbird:
     allow-account-number-reveal: true
     show-build-version: true
     show-account-count: false
+    show-account-programs: false

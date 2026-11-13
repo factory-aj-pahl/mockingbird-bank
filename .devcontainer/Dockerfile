@@ -2,8 +2,9 @@
 # AGENTS.md and Dockerfile). The docker-outside-of-docker feature (added via
 # devcontainer.json, not here) gives this container a CLI that talks to the
 # *host's* Docker daemon, which is what Testcontainers-backed integration tests
-# (ApplicationSmokeTest, AccountTransactionQueryPerformanceTest) need to start
-# their own throwaway Postgres containers as siblings.
+# (ApplicationSmokeTest, AccountTransactionQueryPerformanceTest,
+# ProgramMigrationTest) need to start their own throwaway Postgres containers as
+# siblings.
 FROM mcr.microsoft.com/devcontainers/java:1-21-bookworm
 
 # This base image ships an apt source for Yarn signed with a key that Yarn

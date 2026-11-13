@@ -1,6 +1,6 @@
 # Data models
 
-Column-level reference for the four tables created by `src/main/resources/db/migration/V1__init_schema.sql` and the JPA entities in `src/main/java/com/mockingbirdbank/model/` that map onto them. For how the persistence layer behaves (Flyway ownership, `ddl-auto: validate`, the N+1 guard, repositories) see [Persistence](../systems/persistence.md).
+Column-level reference for the five tables created by `src/main/resources/db/migration/V1__init_schema.sql` and `src/main/resources/db/migration/V2__account_programs.sql`, and the JPA entities in `src/main/java/com/mockingbirdbank/model/` that map onto them. For how the persistence layer behaves (Flyway ownership, `ddl-auto: validate`, the N+1 guard, repositories) see [Persistence](../systems/persistence.md).
 
 ## Entity relationships
 
@@ -9,10 +9,13 @@ erDiagram
     account_holder ||--|| app_user : "has login"
     account_holder ||--o{ account : owns
     account ||--o{ transaction : records
+    account_holder ||--o{ program_participation : "takes part in"
+    program_participation |o--o{ account : includes
     account_holder {
         BIGINT id PK
         VARCHAR full_name
         VARCHAR email UK
+        DATE date_of_birth
     }
     app_user {
         BIGINT id PK
@@ -27,7 +30,14 @@ erDiagram
         VARCHAR account_type
         VARCHAR nickname
         NUMERIC balance
+        VARCHAR currency
         DATE opened_at
+        BIGINT program_participation_id FK
+    }
+    program_participation {
+        BIGINT id PK
+        BIGINT holder_id FK
+        VARCHAR program_type
     }
     transaction {
         BIGINT id PK
@@ -50,6 +60,7 @@ Entity `AccountHolder` in `src/main/java/com/mockingbirdbank/model/AccountHolder
 | `id` | `BIGINT` identity | PK | `id` | `Long` | |
 | `full_name` | `VARCHAR(255)` | `NOT NULL` | `fullName` | `String` | Shown as "Welcome back, ..." in the top bar |
 | `email` | `VARCHAR(255)` | `NOT NULL UNIQUE` | `email` | `String` | |
+| `date_of_birth` | `DATE` | nullable (added in V2) | `dateOfBirth` | `LocalDate` | `null` when unknown, as for every holder created before V2. The Youth Savings age rule treats `null` as not met. Set through the three-argument constructor `AccountHolder(fullName, email, dateOfBirth)` |
 | (none) | | | `accounts` | `List<Account>` | `@OneToMany(mappedBy = "holder", cascade = ALL, orphanRemoval = true)`, lazy |
 
 ## app_user
@@ -75,9 +86,22 @@ Entity `Account` in `src/main/java/com/mockingbirdbank/model/Account.java`.
 | `account_type` | `VARCHAR(255)` | `NOT NULL` | `accountType` | `AccountType` | `@Enumerated(EnumType.STRING)`; no database check constraint |
 | `nickname` | `VARCHAR(255)` | nullable | `nickname` | `String` | Display name such as "Vacation Savings" |
 | `balance` | `NUMERIC(14, 2)` | `NOT NULL` | `balance` | `BigDecimal` | Stored value, not computed from transactions |
+| `currency` | `VARCHAR(3)` | `NOT NULL DEFAULT 'USD'`, check `account_currency_iso_code` (`^[A-Z]{3}$`), added in V2 | `currency` | `String` | ISO 4217 code of the balance; Java default `Account.USD`. Existing rows became `USD` |
 | `opened_at` | `DATE` | `NOT NULL` | `openedAt` | `LocalDate` | |
+| `program_participation_id` | `BIGINT` | nullable, indexed, added in V2. Composite FK `(program_participation_id, holder_id)` to `program_participation (id, holder_id)` (`account_program_participation_same_holder`) | `programParticipation` | `ProgramParticipation` | `@ManyToOne(fetch = LAZY)`. `null` means no program. One column, so an account is in at most one program. The composite key makes the database reject a link to another customer's participation |
 | (none) | | | `transactions` | `List<Transaction>` | `@OneToMany(mappedBy = "account", cascade = ALL, orphanRemoval = true)`, lazy, `@BatchSize(size = 20)` |
 
+## program_participation
+
+Entity `ProgramParticipation` in `src/main/java/com/mockingbirdbank/model/ProgramParticipation.java`. Created by `V2__account_programs.sql`. One customer's participation in one program. Whether it meets the program's rules is never stored; `ProgramService` evaluates it each time (see [Account programs](../features/account-programs.md)).
+
+| Column | SQL type | Constraints | Entity field | Java type | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `id` | `BIGINT` identity | PK | `id` | `Long` | |
+| `holder_id` | `BIGINT` | `NOT NULL`, FK to `account_holder(id)`, indexed | `holder` | `AccountHolder` | `@ManyToOne(optional = false)`, eager |
+| `program_type` | `VARCHAR(255)` | `NOT NULL`, check `program_participation_known_type`: `REGULAR` or `YOUTH_SAVINGS` | `programType` | `ProgramType` | `@Enumerated(EnumType.STRING)` |
+| (none) | | `UNIQUE (id, holder_id)` (`program_participation_id_holder_key`) | | | Target of the composite foreign key from `account` |
+| (none) | | | `accounts` | `List<Account>` | `@OneToMany(mappedBy = "programParticipation")`, lazy, `@OrderBy("accountType ASC, id ASC")`, `@BatchSize(size = 20)` |
 ## transaction
 
 Entity `Transaction` in `src/main/java/com/mockingbirdbank/model/Transaction.java`.
@@ -102,14 +126,22 @@ Entity `Transaction` in `src/main/java/com/mockingbirdbank/model/Transaction.jav
 
 Because the column holds the string, `AccountRepository.findByHolderIdOrderByAccountTypeAscIdAsc` sorts `CHECKING` before `SAVINGS` alphabetically.
 
+`ProgramType` in `src/main/java/com/mockingbirdbank/model/ProgramType.java`, stored by name in `program_participation.program_type` and limited to these values by a check constraint:
+
+| Value | Display name | Rules |
+| --- | --- | --- |
+| `REGULAR` | Regular | Exactly one checking and one savings account; the savings balance is USD and over $100.00 |
+| `YOUTH_SAVINGS` | Youth Savings | Exactly one savings account, no checking; the customer is under 18 |
+
 ## Constraints and indexes
 
 | Kind | Where |
 | --- | --- |
-| Primary keys | `id` on all four tables |
-| Unique | `account_holder.email`, `app_user.username`, `app_user.holder_id`, `account.account_number` |
-| Foreign keys | `app_user.holder_id`, `account.holder_id` to `account_holder.id`; `transaction.account_id` to `account.id`. No `ON DELETE` action, so the database rejects deleting a parent that still has children |
-| Indexes | Only those PostgreSQL creates for primary keys and unique constraints. `account.holder_id` and `transaction.account_id` have no index of their own |
+| Primary keys | `id` on all five tables |
+| Unique | `account_holder.email`, `app_user.username`, `app_user.holder_id`, `account.account_number`, `program_participation (id, holder_id)` |
+| Check | `account.currency` matches `^[A-Z]{3}$`; `program_participation.program_type` is `REGULAR` or `YOUTH_SAVINGS` |
+| Foreign keys | `app_user.holder_id`, `account.holder_id` to `account_holder.id`; `transaction.account_id` to `account.id`; `program_participation.holder_id` to `account_holder.id`; `account (program_participation_id, holder_id)` to `program_participation (id, holder_id)`, which is only checked when `program_participation_id` is not null. No `ON DELETE` action, so the database rejects deleting a parent that still has children |
+| Indexes | Those PostgreSQL creates for primary keys and unique constraints, plus `program_participation_holder_idx` on `program_participation.holder_id` and `account_program_participation_idx` on `account.program_participation_id` (both from V2). `account.holder_id` and `transaction.account_id` have no index of their own |
 
 Deletes cascade only at the JPA level (`CascadeType.ALL` with `orphanRemoval` on `AccountHolder.accounts` and `Account.transactions`). `AppUser` has no cascade, so deleting a holder through JPA would hit the `app_user.holder_id` foreign key. The app is read-only and never deletes anything today.
 
@@ -125,22 +157,26 @@ These are computed in Java and have no column.
 
 ## Seed data
 
-`src/main/java/com/mockingbirdbank/config/DataInitializer.java` inserts this on startup when `account_holder` is empty. [Persistence](../systems/persistence.md#seeding) covers when it runs.
+`src/main/java/com/mockingbirdbank/config/DataInitializer.java` inserts this on startup when `account_holder` is empty. [Persistence](../systems/persistence.md#seeding) covers when it runs. Jordan Ellis is seeded first, so Jordan's accounts keep IDs 1 to 3 on a fresh database.
 
 | Table | Rows | Content |
 | --- | --- | --- |
-| `account_holder` | 1 | Jordan Ellis, `jordan.ellis@example.com` |
-| `app_user` | 1 | `jordan.ellis`, BCrypt hash of `MOCKINGBIRD_DEV_PASSWORD` or the default `mockingbird` |
-| `account` | 3 | See below |
-| `transaction` | 24 | The same 8 rows for each account |
+| `account_holder` | 2 | Jordan Ellis, `jordan.ellis@example.com`, born 1988-04-23; Riley Chen, `riley.chen@example.com`, born 15 years before the seed date in America/New_York |
+| `app_user` | 2 | `jordan.ellis` and `riley.chen`, each a BCrypt hash of `MOCKINGBIRD_DEV_PASSWORD` or the default `mockingbird` |
+| `program_participation` | 2 | `REGULAR` for Jordan Ellis, `YOUTH_SAVINGS` for Riley Chen |
+| `account` | 4 | See below. All are `USD` |
+| `transaction` | 28 | The same 8 rows for each of Jordan's accounts, and 4 youth rows for Riley's |
 
-| Nickname | Number | Type | Balance | Opened |
-| --- | --- | --- | --- | --- |
-| Everyday Checking | `1000000004821` | `CHECKING` | 4,318.52 | 2021-03-12 |
-| High-Yield Savings | `2000000007743` | `SAVINGS` | 18,200.00 | 2022-01-05 |
-| Vacation Savings | `2000000000092` | `SAVINGS` | 1,800.00 | 2023-06-20 |
+| Holder | Nickname | Number | Type | Balance | Opened | Program |
+| --- | --- | --- | --- | --- | --- | --- |
+| Jordan Ellis | Everyday Checking | `1000000004821` | `CHECKING` | 4,318.52 | 2021-03-12 | Regular |
+| Jordan Ellis | High-Yield Savings | `2000000007743` | `SAVINGS` | 18,200.00 | 2022-01-05 | Regular |
+| Jordan Ellis | Vacation Savings | `2000000000092` | `SAVINGS` | 1,800.00 | 2023-06-20 | none |
+| Riley Chen | Youth Savings | `2000000005317` | `SAVINGS` | 245.50 | 2024-09-03 | Youth Savings |
 
-Transactions per account, dated relative to startup time in UTC:
+Vacation Savings is deliberately outside any program, because Regular takes exactly one savings account. Both seeded programs meet their rules.
+
+Transactions per Jordan Ellis account, dated relative to startup time in UTC:
 
 | Days ago | Description | Category | Amount |
 | --- | --- | --- | --- |
@@ -155,6 +191,14 @@ Transactions per account, dated relative to startup time in UTC:
 
 The eight amounts net to +4,156.54 per account, which does not match any seeded balance.
 
+Transactions on Riley Chen's Youth Savings account:
+
+| Days ago | Description | Category | Amount |
+| --- | --- | --- | --- |
+| 1 | Birthday gift | Income | 50.00 |
+| 5 | Weekly allowance | Income | 20.00 |
+| 8 | Corner Bookstore | Shopping | -12.99 |
+| 12 | Weekly allowance | Income | 20.00 |
 ## flyway_schema_history
 
-Flyway creates and owns a fifth table, `flyway_schema_history`, recording which migrations have run. No entity maps to it. On an empty database it gets one row for `V1__init_schema.sql`. On a non-empty schema without this table, `spring.flyway.baseline-on-migrate: true` writes a baseline row for version 1 instead and V1 never runs, which is how the first LAB database ended up without the app's tables (see [Pitfalls](../background/pitfalls.md)). New schema changes go in new `V2__...` files; never edit V1.
+Flyway creates and owns a fifth table, `flyway_schema_history`, recording which migrations have run. No entity maps to it. On an empty database it gets one row each for `V1__init_schema.sql` and `V2__account_programs.sql`. On a non-empty schema without this table, `spring.flyway.baseline-on-migrate: true` writes a baseline row for version 1 instead and V1 never runs, which is how the first LAB database ended up without the app's tables (see [Pitfalls](../background/pitfalls.md)). New schema changes go in new `V3__...` files; never edit an applied migration.

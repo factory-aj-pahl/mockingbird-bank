@@ -43,7 +43,7 @@ public class AccountCard extends Anchor {
         name.getStyle().set("font-weight", "600").set("color", "var(--mb-text)");
 
         boolean isChecking = account.getAccountType() == AccountType.CHECKING;
-        Span tag = new Span(isChecking ? "Checking" : "Savings");
+        Span tag = new Span(account.getAccountType().getDisplayName());
         tag.getStyle()
                 .set("font-size", "0.68rem")
                 .set("font-weight", "600")

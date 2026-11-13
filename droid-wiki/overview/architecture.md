@@ -1,6 +1,6 @@
 # Architecture
 
-Mockingbird Bank is one Spring Boot process. It renders a Vaadin UI on the server, calls two application services in-process, and reads from a single PostgreSQL database through Spring Data JPA. There are no other backing services, queues, or caches.
+Mockingbird Bank is one Spring Boot process. It renders a Vaadin UI on the server, calls three application services in-process, and reads from a single PostgreSQL database through Spring Data JPA. There are no other backing services, queues, or caches.
 
 ## Components
 
@@ -11,12 +11,12 @@ graph TD
         Filters[CorrelationIdFilter + Spring Security chain] --> Views
         Views[Vaadin views: LoginView, DashboardView, AccountDetailView] --> Services
         Views --> Flags[FeatureFlagService]
-        Services[AccountService / TransactionService] -->|circuit breaker| Repos[Spring Data JPA repositories]
+        Services[AccountService / TransactionService / ProgramService] -->|circuit breaker| Repos[Spring Data JPA repositories]
         Services --> Analytics[AnalyticsEventService]
         Actuator[Actuator: health, info, featureflags, profiling]
     end
     Repos --> DB[(PostgreSQL)]
-    Flyway[Flyway V1 migration] -.->|on startup| DB
+    Flyway[Flyway V1 and V2 migrations] -.->|on startup| DB
     Analytics -->|counter| Micrometer[(product.events)]
     Analytics -->|log line| EventLog[analytics-events.log]
 ```
@@ -25,12 +25,12 @@ graph TD
 | --- | --- | --- |
 | UI | `com.mockingbirdbank.ui` | Vaadin routes and components. Views call services directly; there is no REST API between UI and backend. See [UI](../systems/ui.md). |
 | Security | `com.mockingbirdbank.security` | Form login, BCrypt passwords, route access rules. See [Security](../security.md). |
-| Services | `com.mockingbirdbank.service` | The only business logic: resolve the signed-in holder, list accounts, sum balances, reveal numbers with an ownership check. See [Services](../systems/services.md). |
+| Services | `com.mockingbirdbank.service` | The only business logic: resolve the signed-in holder, list accounts, sum balances, load one owned account, reveal numbers with an ownership check, and evaluate account programs against their rules. See [Services](../systems/services.md). |
 | Persistence | `com.mockingbirdbank.model`, `com.mockingbirdbank.repository` | JPA entities and repositories over the Flyway schema. See [Persistence](../systems/persistence.md). |
 | Resilience | `com.mockingbirdbank.resilience` | One shared circuit breaker config; each service owns a named breaker. See [Resilience](../systems/resilience.md). |
 | Analytics | `com.mockingbirdbank.analytics` | Product events and user-facing errors as a Micrometer counter plus a dedicated log file. See [Analytics](../systems/analytics.md). |
 | Observability | `com.mockingbirdbank.observability` | Correlation IDs, JFR profiling endpoint, build version. See [Observability](../systems/observability.md). |
-| Config | `com.mockingbirdbank.config` | Feature flags, demo data seeding, log scrubbing. See [Feature flags](../features/feature-flags.md). |
+| Config | `com.mockingbirdbank.config` | Feature flags, demo data seeding, the business clock, log scrubbing. See [Feature flags](../features/feature-flags.md). |
 
 ## Request lifecycle
 
@@ -58,17 +58,19 @@ sequenceDiagram
     V-->>B: rendered components
 ```
 
-`AccountService.currentHolder()` in `src/main/java/com/mockingbirdbank/service/AccountService.java` reads the username from `SecurityContextHolder` and looks up the matching `AppUser`, whose `holder` is the `AccountHolder` whose accounts are shown. Every repository call in both services runs through `protectedCall`, which wraps it in a Resilience4j breaker and converts an open breaker into `ServiceUnavailableException`.
+`AccountService.currentHolder()` in `src/main/java/com/mockingbirdbank/service/AccountService.java` reads the username from `SecurityContextHolder` and looks up the matching `AppUser`, whose `holder` is the `AccountHolder` whose accounts are shown. Every repository call in the three services runs through `protectedCall`, which wraps it in a Resilience4j breaker and converts an open breaker into `ServiceUnavailableException`.
 
 ## Data model
 
-Four tables, all created by `src/main/resources/db/migration/V1__init_schema.sql`. Hibernate runs with `ddl-auto: validate`, so it only checks the mappings.
+Five tables. `src/main/resources/db/migration/V1__init_schema.sql` creates the first four, and `src/main/resources/db/migration/V2__account_programs.sql` adds `program_participation` plus new columns on `account_holder` and `account`. Hibernate runs with `ddl-auto: validate`, so it only checks the mappings.
 
 ```mermaid
 graph LR
     AppUser[app_user] -->|holder_id, 1:1| Holder[account_holder]
     Holder -->|1:N| Account[account]
     Account -->|1:N| Tx[transaction]
+    Holder -->|1:N| Program[program_participation]
+    Program -->|1:N, at most one per account| Account
 ```
 
 Login credentials (`app_user`) are kept apart from holder PII (`account_holder`). Details in [Data models](../reference/data-models.md).
@@ -94,11 +96,11 @@ By file count the repository is mostly configuration and automation around a sma
 xychart-beta horizontal
     title "Tracked files by type"
     x-axis ["Java", "YAML", "Markdown", "Shell/zsh", "JSON", "Other"]
-    y-axis "Files" 0 --> 60
-    bar [51, 30, 10, 8, 5, 20]
+    y-axis "Files" 0 --> 70
+    bar [66, 30, 10, 8, 5, 20]
 ```
 
-Java splits into 34 main source files and 17 test files. See [By the numbers](../by-the-numbers.md) for line counts.
+Java splits into 42 main source files and 24 test files. See [By the numbers](../by-the-numbers.md) for line counts.
 
 ## Design choices worth knowing
 

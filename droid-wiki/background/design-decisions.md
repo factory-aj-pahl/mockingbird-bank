@@ -45,7 +45,7 @@ The choices below shape most of the codebase. Each section gives the context, wh
 
 **Decision.** Credentials (username, BCrypt hash) live in their own `app_user` table, one-to-one with `account_holder` through a unique `holder_id`. The holder carries the banking and PII data (name, email).
 
-**Consequences.** Authentication code never touches holder data, and holder queries never load password hashes. `currentHolder()` resolves the principal's username to an `AppUser`, then to its holder. There is no registration flow; the only user is the seeded one.
+**Consequences.** Authentication code never touches holder data, and holder queries never load password hashes. `currentHolder()` resolves the principal's username to an `AppUser`, then to its holder. There is no registration flow; the only users are the two seeded ones.
 
 **Evidence.** Javadoc on `src/main/java/com/mockingbirdbank/model/AppUser.java`, commit `60f9881`.
 

@@ -28,13 +28,16 @@ Container" in VS Code, or `npx @devcontainers/cli up --workspace-folder .`
 from a terminal): it has everything above pre-installed and pre-wired
 together. See [AGENTS.md](AGENTS.md#dev-container) for details.
 
-Open http://localhost:8080 and sign in with the seeded demo login:
+Open http://localhost:8080 and sign in with a seeded demo login:
 
-- **Username:** `jordan.ellis`
-- **Password:** `mockingbird` (override via the `MOCKINGBIRD_DEV_PASSWORD` env var)
+- **Username:** `jordan.ellis` (an adult with a Regular program) or `riley.chen` (a customer
+  under 18 with a Youth Savings program)
+- **Password:** `mockingbird` for both (override via the `MOCKINGBIRD_DEV_PASSWORD` env var)
 
-Flyway creates the schema automatically on first startup; `DataInitializer` seeds one
-account holder with a few sample accounts and transactions so the dashboard isn't empty.
+Flyway creates the schema automatically on first startup; `DataInitializer` seeds two
+account holders with sample accounts, transactions and programs so the dashboard isn't empty.
+The program sections are behind a feature flag that is off by default; start the app with
+`MOCKINGBIRD_FEATURE_FLAGS_SHOW_ACCOUNT_PROGRAMS=true` to see them.
 
 ## Building and testing
 

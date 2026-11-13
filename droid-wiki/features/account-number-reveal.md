@@ -110,7 +110,7 @@ The checking account appears twice on the dashboard (primary line and card). Rev
 
 ## Integration points
 
-- **Security:** the ownership check lives in `AccountService`, not the view. `requireAccount`, used by the detail page, has no such check; see [Account detail](account-detail.md) and [Security](../security.md).
+- **Security:** the ownership check lives in `AccountService`, not the view. `requireAccount`, used by the detail page, applies the same `isOwnedBy` comparison, but reports a foreign account as not-found (`IllegalArgumentException`) rather than `AccessDeniedException`; see [Account detail](account-detail.md#ownership) and [Security](../security.md#account-detail-ownership-check).
 - **Analytics:** `account_number.revealed` success with `scope` `single` or `all`, and error with reason `forbidden`. See [Analytics](../systems/analytics.md).
 - **Resilience:** both service methods use the `accounts` breaker through `protectedCall`. See [Resilience](../systems/resilience.md).
 - **Logging:** account numbers are 13 digits, which `ScrubbingMessageConverter` would redact as card-like if one were logged by mistake. That is a safety net; the code does not log them.
@@ -136,7 +136,7 @@ The checking account appears twice on the dashboard (primary line and card). Rev
 | `src/main/java/com/mockingbirdbank/ui/view/DashboardView.java` | Reveal-all toolbar and listener wiring |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountCard.java` | Hosts the display inside an `<a>` |
 | `src/main/java/com/mockingbirdbank/ui/view/AccountDetailView.java` | Header display |
-| `src/main/java/com/mockingbirdbank/service/AccountService.java` | `revealAccountNumber`, `revealAccountNumbers`, `isOwnedBy` |
+| `src/main/java/com/mockingbirdbank/service/AccountService.java` | `revealAccountNumber`, `revealAccountNumbers`, `isOwnedBy` (package-private, also used by `requireAccount` and `ProgramService`) |
 | `src/main/java/com/mockingbirdbank/config/FeatureFlagsProperties.java` | `allowAccountNumberReveal` default |
 | `src/test/java/com/mockingbirdbank/service/AccountServiceTest.java` | Service tests |
 | `qa/tests/dashboard.spec.ts` | Browser test |
